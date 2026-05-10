@@ -1,0 +1,499 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== AUTH & USERS ====================
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+  APPLE
+}
+
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+  PRO
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  name          String?
+  avatarUrl     String?        @map("avatar_url")
+  password      String?
+  authProvider  AuthProvider    @default(LOCAL) @map("auth_provider")
+  providerId    String?        @map("provider_id")
+  tier          SubscriptionTier @default(FREE)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  devices       UserDevice[]
+  subscription  Subscription?
+  playlists     Playlist[]
+  favorites     Favorite[]
+  history       ListeningHistory[]
+  queue         Queue?
+  backups       Backup[]
+  refreshTokens RefreshToken[]
+  tasteProfile  UserTasteProfile?
+  following     Follow[]   @relation("follower")
+  followers     Follow[]   @relation("following")
+  ownedRooms    ListeningRoom[]
+  roomJoins     RoomParticipant[]
+  roomMessages  RoomMessage[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model UserDevice {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  deviceToken String?  @map("device_token")
+  platform    String   // ios, android, web
+  deviceName  String?  @map("device_name")
+  lastActive  DateTime @default(now()) @map("last_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_devices")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Subscription {
+  id        String             @id @default(uuid())
+  userId    String             @unique @map("user_id")
+  tier      SubscriptionTier   @default(FREE)
+  status    SubscriptionStatus @default(ACTIVE)
+  startedAt DateTime           @default(now()) @map("started_at")
+  expiresAt DateTime?          @map("expires_at")
+  createdAt DateTime           @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+// ==================== MUSIC DATA (Cronjobs) ====================
+
+model Track {
+  id         String   @id @default(uuid())
+  youtubeId  String   @unique @map("youtube_id")
+  title      String
+  artist     String?
+  thumbnail  String?
+  duration   Int?     // seconds
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  trending       Trending[]
+  popular        Popular[]
+  chart          Chart[]
+  genreVideos    GenreVideo[]
+  playlistTracks PlaylistTrack[]
+  favorites      Favorite[]
+  history        ListeningHistory[]
+
+  @@map("tracks")
+}
+
+model Artist {
+  id              String  @id @default(uuid())
+  youtubeChannelId String @unique @map("youtube_channel_id")
+  name            String
+  thumbnail       String?
+  country         String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  topArtists TopArtist[]
+
+  @@map("artists")
+}
+
+model Genre {
+  id   String @id @default(uuid())
+  code String @unique
+  name String
+
+  videos GenreVideo[]
+
+  @@map("genres")
+}
+
+model Trending {
+  id          String   @id @default(uuid())
+  trackId     String   @map("track_id")
+  countryCode String   @map("country_code")
+  rank        Int
+  period      String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@map("trending")
+}
+
+model Popular {
+  id          String   @id @default(uuid())
+  trackId     String   @map("track_id")
+  countryCode String   @map("country_code")
+  rank        Int
+  viewCount   String?  @map("view_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@map("popular")
+}
+
+model Chart {
+  id          String   @id @default(uuid())
+  trackId     String   @map("track_id")
+  countryCode String   @map("country_code")
+  rank        Int
+  trend       String?
+  chartType   String   @default("top") @map("chart_type")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@map("charts")
+}
+
+model TopArtist {
+  id          String   @id @default(uuid())
+  artistId    String   @map("artist_id")
+  countryCode String   @map("country_code")
+  rank        Int
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@map("top_artists")
+}
+
+model TopPlaylist {
+  id          String   @id @default(uuid())
+  youtubeId   String   @map("youtube_id")
+  title       String
+  thumbnail   String?
+  channelName String?  @map("channel_name")
+  videoCount  Int?     @map("video_count")
+  countryCode String   @map("country_code")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("top_playlists")
+}
+
+model GenreVideo {
+  id         String   @id @default(uuid())
+  trackId    String   @map("track_id")
+  genreId    String   @map("genre_id")
+  regionCode String   @map("region_code")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@map("genre_videos")
+}
+
+model MoodCategory {
+  id        String   @id @default(uuid())
+  name      String
+  params    String?  // JSON params for ytmusicapi
+  createdAt DateTime @default(now()) @map("created_at")
+
+  playlists MoodPlaylist[]
+
+  @@map("mood_categories")
+}
+
+model MoodPlaylist {
+  id          String   @id @default(uuid())
+  categoryId  String   @map("category_id")
+  title       String
+  thumbnail   String?
+  youtubePlaylistId String? @map("youtube_playlist_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  category MoodCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@map("mood_playlists")
+}
+
+// ==================== USER LIBRARY ====================
+
+model Playlist {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String
+  isPublic  Boolean  @default(false) @map("is_public")
+  shareCode String?  @unique @map("share_code")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tracks PlaylistTrack[]
+
+  @@map("playlists")
+}
+
+model PlaylistTrack {
+  id         String   @id @default(uuid())
+  playlistId String   @map("playlist_id")
+  trackId    String   @map("track_id")
+  position   Int
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  track    Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, trackId])
+  @@map("playlist_tracks")
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  trackId   String   @map("track_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, trackId])
+  @@map("favorites")
+}
+
+model ListeningHistory {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  trackId        String   @map("track_id")
+  durationPlayed Int?     @map("duration_played") // seconds
+  skipped        Boolean  @default(false)
+  context        String?  // JSON: { source, mood, time_of_day }
+  listenedAt     DateTime @default(now()) @map("listened_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@map("listening_history")
+}
+
+model Queue {
+  id           String   @id @default(uuid())
+  userId       String   @unique @map("user_id")
+  tracksJson   String   @map("tracks_json") @db.Text // JSON array of youtube IDs
+  currentIndex Int      @default(0) @map("current_index")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("queues")
+}
+
+model Backup {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  code      String   @unique
+  data      String   @db.Text // JSON backup data
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("backups")
+}
+
+// ==================== AI & PERSONALIZATION (Phase 2) ====================
+
+model UserTasteProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique @map("user_id")
+  tasteVector String   @map("taste_vector") @db.Text // JSON: genre weights, mood preferences
+  topGenres   String?  @map("top_genres")   // JSON array
+  topMoods    String?  @map("top_moods")    // JSON array
+  topArtists  String?  @map("top_artists")  // JSON array
+  listenCount Int      @default(0) @map("listen_count")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_taste_profiles")
+}
+
+model AiPlaylist {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  type      String   // for-you, radio, discover-weekly, mood, similar
+  title     String
+  trackIds  String   @map("track_ids") @db.Text // JSON array of youtube IDs
+  metadata  String?  @db.Text // JSON: seed, mood, context
+  expiresAt DateTime? @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("ai_playlists")
+}
+
+model MoodHistory {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  mood      String   // happy, sad, energetic, calm, romantic, melancholy...
+  source    String?  // text, emoji, auto-detect
+  input     String?  // original text input
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("mood_history")
+}
+
+model ContextEvent {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  timeOfDay String?  @map("time_of_day") // morning, afternoon, evening, night
+  activity  String?  // working, driving, exercising, relaxing, sleeping
+  weather   String?  // sunny, rainy, cloudy
+  location  String?  // home, office, gym, commute
+  metadata  String?  @db.Text // JSON extra data
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("context_events")
+}
+
+model PlaybackSession {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  startedAt DateTime  @default(now()) @map("started_at")
+  endedAt   DateTime? @map("ended_at")
+  events    String    @default("[]") @db.Text // JSON array of events
+  metadata  String?   @db.Text // JSON: device, quality
+
+  @@map("playback_sessions")
+}
+
+// ==================== SYSTEM ====================
+
+model CronjobRun {
+  id           String   @id @default(uuid())
+  jobName      String   @map("job_name")
+  status       String   // running, completed, failed
+  recordsCount Int?     @map("records_count")
+  error        String?
+  startedAt    DateTime @default(now()) @map("started_at")
+  finishedAt   DateTime? @map("finished_at")
+
+  @@map("cronjob_runs")
+}
+
+// ==================== PHASE 4: SOCIAL ====================
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String   @map("follower_id")
+  followingId String   @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower    User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+model ListeningRoom {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  isPublic    Boolean   @default(true) @map("is_public")
+  maxUsers    Int       @default(50) @map("max_users")
+  hostId      String    @map("host_id")
+  currentTrack String?  @map("current_track")
+  playbackState String  @default("idle") @map("playback_state") // idle, playing, paused
+  createdAt   DateTime  @default(now()) @map("created_at")
+  closedAt    DateTime? @map("closed_at")
+
+  host         User              @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  participants RoomParticipant[]
+  messages     RoomMessage[]
+
+  @@map("listening_rooms")
+}
+
+model RoomParticipant {
+  id       String   @id @default(uuid())
+  roomId   String   @map("room_id")
+  userId   String   @map("user_id")
+  role     String   @default("listener") // host, dj, listener
+  joinedAt DateTime @default(now()) @map("joined_at")
+  leftAt   DateTime? @map("left_at")
+
+  room     ListeningRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@map("room_participants")
+}
+
+model RoomMessage {
+  id        String   @id @default(uuid())
+  roomId    String   @map("room_id")
+  userId    String   @map("user_id")
+  content   String
+  type      String   @default("text") // text, emoji, system
+  createdAt DateTime @default(now()) @map("created_at")
+
+  room      ListeningRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("room_messages")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  type      String   // follow, room_invite, new_playlist, system
+  title     String
+  body      String?
+  data      String   @default("{}")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// ==================== PHASE 5: ADVANCED ====================
+
+model Referral {
+  id          String   @id @default(uuid())
+  userId      String   @unique @map("user_id")
+  code        String   @unique
+  usedBy      String[] @map("used_by") // array of user IDs who used this code
+  bonusDays   Int      @default(0) @map("bonus_days")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("referrals")
+}

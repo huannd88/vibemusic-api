@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { TierGuard, RequireTier } from '../../../common/guards/tier.guard';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { HumService } from './hum.service';
 import { IsString, IsOptional } from 'class-validator';
@@ -13,13 +14,15 @@ class HumRecognizeDto {
 
 @ApiTags('ai-hum')
 @Controller('ai/hum')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, TierGuard)
+@RequireTier('PREMIUM')
 @ApiBearerAuth()
 export class HumController {
   constructor(private humService: HumService) {}
 
   @Post('recognize')
-  @ApiOperation({ summary: 'Upload humming audio or describe melody to identify song' })
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Upload humming audio or describe melody to identify song (Premium)' })
   recognize(@CurrentUser('id') userId: string, @Body() dto: HumRecognizeDto) {
     return this.humService.recognize(userId, dto);
   }

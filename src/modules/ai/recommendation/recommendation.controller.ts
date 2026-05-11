@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Query, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Param, UseGuards, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { TierGuard, RequireTier } from '../../../common/guards/tier.guard';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RecommendationService } from './recommendation.service';
 import { IsString, IsOptional, IsIn } from 'class-validator';
@@ -14,7 +15,7 @@ class FeedbackDto {
 
 @ApiTags('ai')
 @Controller('ai/recommend')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, TierGuard)
 @ApiBearerAuth()
 export class RecommendationController {
   constructor(private recommendService: RecommendationService) {}
@@ -47,12 +48,14 @@ export class RecommendationController {
   }
 
   @Get('because-you-listened')
-  @ApiOperation({ summary: '"Because you listened to..." sections' })
+  @RequireTier('PREMIUM')
+  @ApiOperation({ summary: '"Because you listened to..." sections (Premium)' })
   getBecauseYouListened(@CurrentUser('id') userId: string) {
     return this.recommendService.getBecauseYouListened(userId);
   }
 
   @Post('feedback')
+  @HttpCode(200)
   @ApiOperation({ summary: 'Like/dislike recommendation feedback' })
   submitFeedback(@CurrentUser('id') userId: string, @Body() dto: FeedbackDto) {
     return this.recommendService.submitFeedback(userId, dto);

@@ -1,11 +1,12 @@
-import { Controller, Get, Post, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, UseGuards, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TierGuard, RequireTier } from '../../common/guards/tier.guard';
 import { LyricsService } from './lyrics.service';
 
 @ApiTags('lyrics')
 @Controller('lyrics')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, TierGuard)
 @ApiBearerAuth()
 export class LyricsController {
   constructor(private lyricsService: LyricsService) {}
@@ -24,7 +25,9 @@ export class LyricsController {
   }
 
   @Post(':youtubeId/translate')
-  @ApiOperation({ summary: 'AI translate lyrics' })
+  @HttpCode(200)
+  @RequireTier('PREMIUM')
+  @ApiOperation({ summary: 'AI translate lyrics (Premium)' })
   @ApiQuery({ name: 'lang', required: true })
   translate(@Param('youtubeId') youtubeId: string, @Query('lang') lang: string) {
     return this.lyricsService.translateLyrics(youtubeId, lang);

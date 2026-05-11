@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { TierGuard, RequireTier } from '../../../common/guards/tier.guard';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { VoiceService } from './voice.service';
 import { IsString, IsOptional } from 'class-validator';
@@ -15,19 +16,22 @@ class TextCommandDto {
 
 @ApiTags('ai-voice')
 @Controller('ai/voice')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, TierGuard)
+@RequireTier('PREMIUM')
 @ApiBearerAuth()
 export class VoiceController {
   constructor(private voiceService: VoiceService) {}
 
   @Post('command')
-  @ApiOperation({ summary: 'Audio voice command (STT → Intent → Action)' })
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Audio voice command (STT → Intent → Action) (Premium)' })
   audioCommand(@CurrentUser('id') userId: string, @Body() dto: AudioCommandDto) {
     return this.voiceService.processAudioCommand(userId, dto.audio);
   }
 
   @Post('text-command')
-  @ApiOperation({ summary: 'Text command fallback (Vietnamese/English NLU)' })
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Text command fallback (Vietnamese/English NLU) (Premium)' })
   textCommand(@CurrentUser('id') userId: string, @Body() dto: TextCommandDto) {
     return this.voiceService.processTextCommand(userId, dto.text);
   }

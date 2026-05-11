@@ -15,8 +15,8 @@ export class SearchService {
     if (cached) return cached;
 
     try {
-      const { Innertube } = require('youtubei');
-      const yt = await Innertube.create();
+      const { Client } = require('youtubei');
+      const yt = new Client();
 
       let results;
       if (type === 'playlist') {
@@ -25,13 +25,15 @@ export class SearchService {
         results = await yt.search(query, { type: 'video' });
       }
 
-      const items = (results.results || []).slice(0, limit).map((item: any) => ({
+      // youtubei@1.8.x: results.items, older versions: results directly as array
+      const rawItems = results.items || results || [];
+      const items = rawItems.slice(0, limit).map((item: any) => ({
         youtubeId: item.id,
         title: item.title?.text || item.title || '',
-        artist: item.author?.name || '',
-        thumbnail: item.thumbnails?.[0]?.url || '',
+        artist: item.channel?.name || item.author?.name || '',
+        thumbnail: item.thumbnails?.[0]?.url || `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`,
         duration: item.duration?.seconds || 0,
-        viewCount: item.view_count?.text || '',
+        viewCount: item.view_count?.text || item.viewCount || '',
         type,
       }));
 
@@ -52,11 +54,18 @@ export class SearchService {
     if (cached) return cached;
 
     try {
-      const { Innertube } = require('youtubei');
-      const yt = await Innertube.create();
-      const suggestions = await yt.getSearchSuggestions(query);
+      // youtubei Client doesn't have getSearchSuggestions, use Google suggest API
+      const url = `https://suggestqueries-clients6.youtube.com/complete/search?client=youtube&q=${encodeURIComponent(query)}&ds=yt`;
+      const resp = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      });
+      const text = await resp.text();
+      // Parse JSONP: window.google.ac.h(...)
+      const jsonStr = text.replace(/^[^(]+\(/, '').replace(/\)$/, '');
+      const data = JSON.parse(jsonStr);
+      const suggestions = (data[1] || []).map((item: any) => item[0]);
 
-      const response = { suggestions: suggestions || [], query };
+      const response = { suggestions, query };
       await this.redis.setJson(cacheKey, response, 60 * 60); // 1h cache
       return response;
     } catch (e) {

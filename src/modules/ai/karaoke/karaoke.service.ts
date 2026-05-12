@@ -49,7 +49,8 @@ export class KaraokeService {
       jobId,
       youtubeId,
       status: 'queued',
-      message: 'Vocal separation queued. Requires Demucs/Spleeter integration for production.',
+      message:
+        'Vocal separation queued. Requires Demucs/Spleeter integration for production.',
       estimatedTime: '30-60 seconds (when integrated)',
     };
   }
@@ -86,14 +87,16 @@ export class KaraokeService {
       youtubeId: job.youtubeId,
       streams: {
         instrumental: null, // URL to instrumental track
-        vocal: null,        // URL to isolated vocal track
+        vocal: null, // URL to isolated vocal track
       },
       message: 'Audio separation requires Demucs integration',
     };
   }
 
   async transpose(userId: string, data: { jobId: string; semitones: number }) {
-    const job = await this.redis.getJson<KaraokeJob>(`karaoke:job:${data.jobId}`);
+    const job = await this.redis.getJson<KaraokeJob>(
+      `karaoke:job:${data.jobId}`,
+    );
     if (!job) return { error: 'Job not found' };
 
     // In production: use FFmpeg to pitch-shift the audio

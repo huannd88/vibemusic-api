@@ -2,6 +2,11 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
+import { getAppRole } from '../../common/app-role';
+
+// Read version from package.json at startup (not hardcoded)
+
+const pkg = require('../../../package.json');
 
 @ApiTags('system')
 @Controller()
@@ -31,7 +36,8 @@ export class HealthController {
       uptime,
       database: dbHealthy ? 'connected' : 'disconnected',
       redis: redisHealthy ? 'connected' : 'disconnected',
-      version: '1.0.0',
+      version: pkg.version,
+      appRole: getAppRole(),
       timestamp: new Date().toISOString(),
     };
   }
@@ -40,7 +46,7 @@ export class HealthController {
   @ApiOperation({ summary: 'App config & feature flags' })
   getConfig() {
     return {
-      version: '1.0.0',
+      version: pkg.version,
       features: {
         // Phase 1
         playback: true,

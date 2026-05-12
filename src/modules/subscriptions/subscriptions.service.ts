@@ -70,7 +70,7 @@ export class SubscriptionsService {
   }
 
   async purchase(userId: string, data: { planId: string; receipt?: string }) {
-    const plan = PLANS.find(p => p.id === data.planId);
+    const plan = PLANS.find((p) => p.id === data.planId);
     if (!plan) return { error: 'Invalid plan' };
     if (plan.id === 'free') return { error: 'Cannot purchase Free tier' };
 
@@ -82,7 +82,13 @@ export class SubscriptionsService {
     await this.prisma.subscription.upsert({
       where: { userId },
       update: { tier, status: 'ACTIVE', startedAt: new Date(), expiresAt },
-      create: { userId, tier, status: 'ACTIVE', startedAt: new Date(), expiresAt },
+      create: {
+        userId,
+        tier,
+        status: 'ACTIVE',
+        startedAt: new Date(),
+        expiresAt,
+      },
     });
 
     // Update user tier
@@ -102,8 +108,11 @@ export class SubscriptionsService {
   }
 
   async cancel(userId: string) {
-    const sub = await this.prisma.subscription.findUnique({ where: { userId } });
-    if (!sub || sub.status === 'CANCELLED') return { message: 'No active subscription' };
+    const sub = await this.prisma.subscription.findUnique({
+      where: { userId },
+    });
+    if (!sub || sub.status === 'CANCELLED')
+      return { message: 'No active subscription' };
 
     await this.prisma.subscription.update({
       where: { userId },
@@ -123,7 +132,9 @@ export class SubscriptionsService {
 
   async restore(userId: string, data: { receipt: string }) {
     // In production: verify receipt with Apple/Google to check active subscription
-    const sub = await this.prisma.subscription.findUnique({ where: { userId } });
+    const sub = await this.prisma.subscription.findUnique({
+      where: { userId },
+    });
 
     if (!sub) {
       return { message: 'No subscription found to restore', restored: false };
@@ -138,10 +149,17 @@ export class SubscriptionsService {
         where: { id: userId },
         data: { tier: sub.tier },
       });
-      return { message: 'Subscription restored', tier: sub.tier, restored: true };
+      return {
+        message: 'Subscription restored',
+        tier: sub.tier,
+        restored: true,
+      };
     }
 
-    return { message: 'Subscription expired, please purchase again', restored: false };
+    return {
+      message: 'Subscription expired, please purchase again',
+      restored: false,
+    };
   }
 
   async getReferral(userId: string) {
@@ -170,8 +188,10 @@ export class SubscriptionsService {
     });
 
     if (!referral) return { error: 'Invalid referral code' };
-    if (referral.userId === userId) return { error: 'Cannot use your own referral code' };
-    if (referral.usedBy.includes(userId)) return { error: 'Already used this code' };
+    if (referral.userId === userId)
+      return { error: 'Cannot use your own referral code' };
+    if (referral.usedBy.includes(userId))
+      return { error: 'Already used this code' };
 
     // Grant bonus days to referrer
     await this.prisma.referral.update({
@@ -184,12 +204,17 @@ export class SubscriptionsService {
 
     // Grant bonus days to new user — extend or create subscription
     const bonus = 7;
-    const sub = await this.prisma.subscription.findUnique({ where: { userId } });
+    const sub = await this.prisma.subscription.findUnique({
+      where: { userId },
+    });
     const newExpiry = new Date();
     newExpiry.setDate(newExpiry.getDate() + bonus);
 
     if (sub) {
-      const currentExpiry = sub.expiresAt && sub.expiresAt > new Date() ? sub.expiresAt : new Date();
+      const currentExpiry =
+        sub.expiresAt && sub.expiresAt > new Date()
+          ? sub.expiresAt
+          : new Date();
       currentExpiry.setDate(currentExpiry.getDate() + bonus);
       await this.prisma.subscription.update({
         where: { userId },
@@ -197,7 +222,12 @@ export class SubscriptionsService {
       });
     } else {
       await this.prisma.subscription.create({
-        data: { userId, tier: 'PREMIUM', status: 'ACTIVE', expiresAt: newExpiry },
+        data: {
+          userId,
+          tier: 'PREMIUM',
+          status: 'ACTIVE',
+          expiresAt: newExpiry,
+        },
       });
     }
 

@@ -53,8 +53,9 @@ export interface ChartArtist {
 
 // ─── Internal Helpers ─────────────────────────────────
 
-const getRandomUserAgent = () => USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const getRandomUserAgent = () =>
+  USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const determineTrend = (currentRank: number, previousRank: number): string => {
   if (!previousRank || previousRank === 0) return 'new';
@@ -63,7 +64,8 @@ const determineTrend = (currentRank: number, previousRank: number): string => {
   return 'neutral';
 };
 
-const thumbnailUrl = (videoId: string) => `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+const thumbnailUrl = (videoId: string) =>
+  `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
 
 // ─── Cache InnerTube context ──────────────────────────
 
@@ -72,7 +74,7 @@ let _cachedContextTime = 0;
 const CONTEXT_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 async function getInnertubeContext(): Promise<any> {
-  if (_cachedContext && (Date.now() - _cachedContextTime) < CONTEXT_CACHE_TTL) {
+  if (_cachedContext && Date.now() - _cachedContextTime < CONTEXT_CACHE_TTL) {
     return _cachedContext;
   }
 
@@ -81,7 +83,7 @@ async function getInnertubeContext(): Promise<any> {
     const response = await fetch(pageUrl, {
       headers: {
         'User-Agent': getRandomUserAgent(),
-        'Accept': 'text/html,application/xhtml+xml',
+        Accept: 'text/html,application/xhtml+xml',
         'Accept-Language': 'en-US,en;q=0.9',
       },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT),
@@ -101,7 +103,10 @@ async function getInnertubeContext(): Promise<any> {
     for (let i = startPos; i < html.length; i++) {
       if (html[i] === '{') depth++;
       if (html[i] === '}') depth--;
-      if (depth === 0) { endPos = i + 1; break; }
+      if (depth === 0) {
+        endPos = i + 1;
+        break;
+      }
     }
 
     const ytcfgData = JSON.parse(html.substring(startPos, endPos));
@@ -139,8 +144,8 @@ async function fetchChartsData(countryCode: string): Promise<any> {
       headers: {
         'User-Agent': getRandomUserAgent(),
         'Content-Type': 'application/json',
-        'Referer': `${CHARTS_BASE_URL}/charts/TopSongs/${cc}/weekly`,
-        'Origin': CHARTS_BASE_URL,
+        Referer: `${CHARTS_BASE_URL}/charts/TopSongs/${cc}/weekly`,
+        Origin: CHARTS_BASE_URL,
       },
       body: JSON.stringify({
         context: adjustedContext,
@@ -173,7 +178,9 @@ function extractSectionContent(data: any): any {
  * Get Trending Videos by country
  * Source: videos[1] (TRENDING_CHART) or videos[0] fallback
  */
-export async function getTrendingVideos(countryCode: string): Promise<ChartVideo[]> {
+export async function getTrendingVideos(
+  countryCode: string,
+): Promise<ChartVideo[]> {
   const cc = countryCode.toUpperCase();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -182,43 +189,60 @@ export async function getTrendingVideos(countryCode: string): Promise<ChartVideo
       const content = extractSectionContent(data);
 
       if (!content) {
-        if (attempt < MAX_RETRIES) { await delay(REQUEST_DELAY); continue; }
+        if (attempt < MAX_RETRIES) {
+          await delay(REQUEST_DELAY);
+          continue;
+        }
         return [];
       }
 
       let videoViews = null;
-      if (content.videos?.length > 1 && content.videos[1].listType === 'TRENDING_CHART') {
+      if (
+        content.videos?.length > 1 &&
+        content.videos[1].listType === 'TRENDING_CHART'
+      ) {
         videoViews = content.videos[1].videoViews;
       } else if (content.videos?.length > 0) {
         videoViews = content.videos[0].videoViews;
       }
 
       if (!videoViews?.length) {
-        if (attempt < MAX_RETRIES) { await delay(REQUEST_DELAY); continue; }
+        if (attempt < MAX_RETRIES) {
+          await delay(REQUEST_DELAY);
+          continue;
+        }
         return [];
       }
 
       return videoViews.map((entry: any, i: number) => {
         const videoId = entry.id || '';
-        const artistNames = (entry.artists || []).map((a: any) => a.name).filter(Boolean).join(', ');
+        const artistNames = (entry.artists || [])
+          .map((a: any) => a.name)
+          .filter(Boolean)
+          .join(', ');
         const thumbnails = entry.thumbnail?.thumbnails || [];
-        const hqThumb = thumbnails.find((t: any) => t.width === 480) || thumbnails[thumbnails.length - 1] || {};
+        const hqThumb =
+          thumbnails.find((t: any) => t.width === 480) ||
+          thumbnails[thumbnails.length - 1] ||
+          {};
 
         return {
           videoId,
           title: entry.title || '',
           artist: entry.channelName || artistNames || '',
           thumbnail: hqThumb.url || thumbnailUrl(videoId),
-          rank: entry.chartEntryMetadata?.currentPosition || (i + 1),
+          rank: entry.chartEntryMetadata?.currentPosition || i + 1,
           trend: determineTrend(
-            entry.chartEntryMetadata?.currentPosition || (i + 1),
+            entry.chartEntryMetadata?.currentPosition || i + 1,
             entry.chartEntryMetadata?.previousPosition || 0,
           ),
           countryCode: cc,
         };
       });
     } catch (e) {
-      logger.error(`getTrendingVideos error (${cc}, attempt ${attempt + 1}): ${(e as Error).message}`);
+      logger.error(
+        `getTrendingVideos error (${cc}, attempt ${attempt + 1}): ${(e as Error).message}`,
+      );
       if (attempt < MAX_RETRIES) await delay(REQUEST_DELAY);
     }
   }
@@ -229,7 +253,9 @@ export async function getTrendingVideos(countryCode: string): Promise<ChartVideo
  * Get Top Songs "Most Popular" by country
  * Source: trackTypes[0].trackViews, sorted by viewCount
  */
-export async function getTopSongsMostPopular(countryCode: string): Promise<ChartVideo[]> {
+export async function getTopSongsMostPopular(
+  countryCode: string,
+): Promise<ChartVideo[]> {
   const cc = countryCode.toUpperCase();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -238,19 +264,28 @@ export async function getTopSongsMostPopular(countryCode: string): Promise<Chart
       const content = extractSectionContent(data);
 
       if (!content?.trackTypes?.[0]?.trackViews) {
-        if (attempt < MAX_RETRIES) { await delay(REQUEST_DELAY); continue; }
+        if (attempt < MAX_RETRIES) {
+          await delay(REQUEST_DELAY);
+          continue;
+        }
         return [];
       }
 
       const trackViews = content.trackTypes[0].trackViews;
       return trackViews.map((entry: any, i: number) => {
         const meta = entry.chartEntryMetadata || {};
-        const currentPos = meta.currentPosition || (i + 1);
+        const currentPos = meta.currentPosition || i + 1;
         const prevPos = meta.previousPosition || 0;
         const videoId = entry.encryptedVideoId || '';
-        const artistNames = (entry.artists || []).map((a: any) => a.name).filter(Boolean).join(', ');
+        const artistNames = (entry.artists || [])
+          .map((a: any) => a.name)
+          .filter(Boolean)
+          .join(', ');
         const thumbnails = entry.thumbnail?.thumbnails || [];
-        const hqThumb = thumbnails.find((t: any) => t.width === 480) || thumbnails[thumbnails.length - 1] || {};
+        const hqThumb =
+          thumbnails.find((t: any) => t.width === 480) ||
+          thumbnails[thumbnails.length - 1] ||
+          {};
 
         return {
           videoId,
@@ -264,7 +299,9 @@ export async function getTopSongsMostPopular(countryCode: string): Promise<Chart
         };
       });
     } catch (e) {
-      logger.error(`getTopSongsMostPopular error (${cc}): ${(e as Error).message}`);
+      logger.error(
+        `getTopSongsMostPopular error (${cc}): ${(e as Error).message}`,
+      );
       if (attempt < MAX_RETRIES) await delay(REQUEST_DELAY);
     }
   }
@@ -275,7 +312,9 @@ export async function getTopSongsMostPopular(countryCode: string): Promise<Chart
  * Get Top Songs "Biggest Movers" by country
  * Source: trackTypes[0].trackViews, filtered/sorted by rank change
  */
-export async function getTopSongsBiggestMovers(countryCode: string): Promise<ChartVideo[]> {
+export async function getTopSongsBiggestMovers(
+  countryCode: string,
+): Promise<ChartVideo[]> {
   const cc = countryCode.toUpperCase();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -284,7 +323,10 @@ export async function getTopSongsBiggestMovers(countryCode: string): Promise<Cha
       const content = extractSectionContent(data);
 
       if (!content?.trackTypes?.[0]?.trackViews) {
-        if (attempt < MAX_RETRIES) { await delay(REQUEST_DELAY); continue; }
+        if (attempt < MAX_RETRIES) {
+          await delay(REQUEST_DELAY);
+          continue;
+        }
         return [];
       }
 
@@ -293,26 +335,45 @@ export async function getTopSongsBiggestMovers(countryCode: string): Promise<Cha
       const movers = trackViews
         .filter((entry: any) => {
           const meta = entry.chartEntryMetadata || {};
-          return meta.previousPosition > 0 && meta.currentPosition < meta.previousPosition;
+          return (
+            meta.previousPosition > 0 &&
+            meta.currentPosition < meta.previousPosition
+          );
         })
         .sort((a: any, b: any) => {
-          const moveA = (a.chartEntryMetadata?.previousPosition || 0) - (a.chartEntryMetadata?.currentPosition || 0);
-          const moveB = (b.chartEntryMetadata?.previousPosition || 0) - (b.chartEntryMetadata?.currentPosition || 0);
+          const moveA =
+            (a.chartEntryMetadata?.previousPosition || 0) -
+            (a.chartEntryMetadata?.currentPosition || 0);
+          const moveB =
+            (b.chartEntryMetadata?.previousPosition || 0) -
+            (b.chartEntryMetadata?.currentPosition || 0);
           return moveB - moveA;
         });
 
-      const entries = movers.length > 0 ? movers : trackViews.sort((a: any, b: any) => {
-        return (b.chartEntryMetadata?.percentViewsChange || 0) - (a.chartEntryMetadata?.percentViewsChange || 0);
-      });
+      const entries =
+        movers.length > 0
+          ? movers
+          : trackViews.sort((a: any, b: any) => {
+              return (
+                (b.chartEntryMetadata?.percentViewsChange || 0) -
+                (a.chartEntryMetadata?.percentViewsChange || 0)
+              );
+            });
 
       return entries.map((entry: any, i: number) => {
         const meta = entry.chartEntryMetadata || {};
-        const currentPos = meta.currentPosition || (i + 1);
+        const currentPos = meta.currentPosition || i + 1;
         const prevPos = meta.previousPosition || 0;
         const videoId = entry.encryptedVideoId || '';
-        const artistNames = (entry.artists || []).map((a: any) => a.name).filter(Boolean).join(', ');
+        const artistNames = (entry.artists || [])
+          .map((a: any) => a.name)
+          .filter(Boolean)
+          .join(', ');
         const thumbnails = entry.thumbnail?.thumbnails || [];
-        const hqThumb = thumbnails.find((t: any) => t.width === 480) || thumbnails[thumbnails.length - 1] || {};
+        const hqThumb =
+          thumbnails.find((t: any) => t.width === 480) ||
+          thumbnails[thumbnails.length - 1] ||
+          {};
 
         return {
           videoId,
@@ -326,7 +387,9 @@ export async function getTopSongsBiggestMovers(countryCode: string): Promise<Cha
         };
       });
     } catch (e) {
-      logger.error(`getTopSongsBiggestMovers error (${cc}): ${(e as Error).message}`);
+      logger.error(
+        `getTopSongsBiggestMovers error (${cc}): ${(e as Error).message}`,
+      );
       if (attempt < MAX_RETRIES) await delay(REQUEST_DELAY);
     }
   }
@@ -337,7 +400,9 @@ export async function getTopSongsBiggestMovers(countryCode: string): Promise<Cha
  * Get Top Songs "Top Debuts" by country
  * Source: trackTypes[0].trackViews, filtered by periodsOnChart === 1
  */
-export async function getTopSongsTopDebuts(countryCode: string): Promise<ChartVideo[]> {
+export async function getTopSongsTopDebuts(
+  countryCode: string,
+): Promise<ChartVideo[]> {
   const cc = countryCode.toUpperCase();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -346,25 +411,38 @@ export async function getTopSongsTopDebuts(countryCode: string): Promise<ChartVi
       const content = extractSectionContent(data);
 
       if (!content?.trackTypes?.[0]?.trackViews) {
-        if (attempt < MAX_RETRIES) { await delay(REQUEST_DELAY); continue; }
+        if (attempt < MAX_RETRIES) {
+          await delay(REQUEST_DELAY);
+          continue;
+        }
         return [];
       }
 
       const trackViews = content.trackTypes[0].trackViews;
       const debuts = trackViews.filter((entry: any) => {
         const meta = entry.chartEntryMetadata || {};
-        return meta.periodsOnChart === 1 || meta.previousPosition === 0 || !meta.previousPosition;
+        return (
+          meta.periodsOnChart === 1 ||
+          meta.previousPosition === 0 ||
+          !meta.previousPosition
+        );
       });
 
       const entries = debuts.length > 0 ? debuts : trackViews.slice(-20);
 
       return entries.map((entry: any, i: number) => {
         const meta = entry.chartEntryMetadata || {};
-        const currentPos = meta.currentPosition || (i + 1);
+        const currentPos = meta.currentPosition || i + 1;
         const videoId = entry.encryptedVideoId || '';
-        const artistNames = (entry.artists || []).map((a: any) => a.name).filter(Boolean).join(', ');
+        const artistNames = (entry.artists || [])
+          .map((a: any) => a.name)
+          .filter(Boolean)
+          .join(', ');
         const thumbnails = entry.thumbnail?.thumbnails || [];
-        const hqThumb = thumbnails.find((t: any) => t.width === 480) || thumbnails[thumbnails.length - 1] || {};
+        const hqThumb =
+          thumbnails.find((t: any) => t.width === 480) ||
+          thumbnails[thumbnails.length - 1] ||
+          {};
 
         return {
           videoId,
@@ -378,7 +456,9 @@ export async function getTopSongsTopDebuts(countryCode: string): Promise<ChartVi
         };
       });
     } catch (e) {
-      logger.error(`getTopSongsTopDebuts error (${cc}): ${(e as Error).message}`);
+      logger.error(
+        `getTopSongsTopDebuts error (${cc}): ${(e as Error).message}`,
+      );
       if (attempt < MAX_RETRIES) await delay(REQUEST_DELAY);
     }
   }
@@ -389,7 +469,9 @@ export async function getTopSongsTopDebuts(countryCode: string): Promise<ChartVi
  * Get Top Artists by country
  * Source: artists[0].artistViews
  */
-export async function getTopArtists(countryCode: string): Promise<ChartArtist[]> {
+export async function getTopArtists(
+  countryCode: string,
+): Promise<ChartArtist[]> {
   const cc = countryCode.toUpperCase();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -398,7 +480,10 @@ export async function getTopArtists(countryCode: string): Promise<ChartArtist[]>
       const content = extractSectionContent(data);
 
       if (!content?.artists?.[0]?.artistViews) {
-        if (attempt < MAX_RETRIES) { await delay(REQUEST_DELAY); continue; }
+        if (attempt < MAX_RETRIES) {
+          await delay(REQUEST_DELAY);
+          continue;
+        }
         return [];
       }
 
@@ -412,7 +497,7 @@ export async function getTopArtists(countryCode: string): Promise<ChartArtist[]>
           name: entry.name || '',
           channelId: entry.externalChannelId || '',
           thumbnail: thumb.url || '',
-          rank: meta.currentPosition || (i + 1),
+          rank: meta.currentPosition || i + 1,
           countryCode: cc,
         };
       });

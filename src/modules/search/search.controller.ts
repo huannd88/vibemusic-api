@@ -1,5 +1,10 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SearchService } from './search.service';
 
@@ -13,9 +18,17 @@ export class SearchController {
   @Get()
   @ApiOperation({ summary: 'Search YouTube (video, playlist, channel)' })
   @ApiQuery({ name: 'q', required: true })
-  @ApiQuery({ name: 'type', required: false, enum: ['video', 'playlist', 'channel'] })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    enum: ['video', 'playlist', 'channel'],
+  })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  search(@Query('q') q: string, @Query('type') type?: string, @Query('limit') limit?: number) {
+  search(
+    @Query('q') q: string,
+    @Query('type') type?: string,
+    @Query('limit') limit?: number,
+  ) {
     return this.searchService.search(q, type || 'video', limit || 20);
   }
 

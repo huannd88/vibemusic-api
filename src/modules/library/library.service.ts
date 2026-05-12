@@ -22,7 +22,9 @@ export class LibraryService {
       create: { youtubeId, title: youtubeId },
     });
     try {
-      await this.prisma.favorite.create({ data: { userId, trackId: track.id } });
+      await this.prisma.favorite.create({
+        data: { userId, trackId: track.id },
+      });
     } catch {
       // Already favorited
     }
@@ -32,7 +34,9 @@ export class LibraryService {
   async removeFavorite(userId: string, youtubeId: string) {
     const track = await this.prisma.track.findUnique({ where: { youtubeId } });
     if (track) {
-      await this.prisma.favorite.deleteMany({ where: { userId, trackId: track.id } });
+      await this.prisma.favorite.deleteMany({
+        where: { userId, trackId: track.id },
+      });
     }
     return { message: 'Removed from favorites' };
   }
@@ -52,7 +56,15 @@ export class LibraryService {
     return { items, total, limit, offset };
   }
 
-  async addHistory(userId: string, data: { youtubeId: string; durationPlayed?: number; skipped?: boolean; context?: string }) {
+  async addHistory(
+    userId: string,
+    data: {
+      youtubeId: string;
+      durationPlayed?: number;
+      skipped?: boolean;
+      context?: string;
+    },
+  ) {
     const track = await this.prisma.track.upsert({
       where: { youtubeId: data.youtubeId },
       update: {},
@@ -85,11 +97,21 @@ export class LibraryService {
     };
   }
 
-  async updateQueue(userId: string, data: { tracks: string[]; currentIndex: number }) {
+  async updateQueue(
+    userId: string,
+    data: { tracks: string[]; currentIndex: number },
+  ) {
     await this.prisma.queue.upsert({
       where: { userId },
-      update: { tracksJson: JSON.stringify(data.tracks), currentIndex: data.currentIndex },
-      create: { userId, tracksJson: JSON.stringify(data.tracks), currentIndex: data.currentIndex },
+      update: {
+        tracksJson: JSON.stringify(data.tracks),
+        currentIndex: data.currentIndex,
+      },
+      create: {
+        userId,
+        tracksJson: JSON.stringify(data.tracks),
+        currentIndex: data.currentIndex,
+      },
     });
     return { message: 'Queue updated' };
   }
@@ -114,7 +136,12 @@ export class LibraryService {
     ]);
 
     const code = nanoid(12);
-    const backupData = { playlists, favorites, history, createdAt: new Date().toISOString() };
+    const backupData = {
+      playlists,
+      favorites,
+      history,
+      createdAt: new Date().toISOString(),
+    };
 
     await this.prisma.backup.create({
       data: { userId, code, data: JSON.stringify(backupData) },
@@ -148,7 +175,11 @@ export class LibraryService {
         });
         try {
           await this.prisma.playlistTrack.create({
-            data: { playlistId: playlist.id, trackId: track.id, position: pt.position },
+            data: {
+              playlistId: playlist.id,
+              trackId: track.id,
+              position: pt.position,
+            },
           });
         } catch {}
       }
@@ -166,7 +197,9 @@ export class LibraryService {
         },
       });
       try {
-        await this.prisma.favorite.create({ data: { userId, trackId: track.id } });
+        await this.prisma.favorite.create({
+          data: { userId, trackId: track.id },
+        });
       } catch {}
     }
 

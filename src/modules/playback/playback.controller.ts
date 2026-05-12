@@ -1,5 +1,19 @@
-import { Controller, Get, Post, Param, Body, Query, UseGuards, HttpCode } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  HttpCode,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TierGuard, RequireTier } from '../../common/guards/tier.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -14,13 +28,22 @@ export class PlaybackController {
 
   @Get('stream/:youtubeId')
   @ApiOperation({ summary: 'Get audio stream URL' })
-  @ApiQuery({ name: 'quality', required: false, enum: ['128k', '256k', 'auto'] })
-  getStream(@Param('youtubeId') youtubeId: string, @Query('quality') quality?: string) {
+  @ApiQuery({
+    name: 'quality',
+    required: false,
+    enum: ['128k', '256k', 'auto'],
+  })
+  getStream(
+    @Param('youtubeId') youtubeId: string,
+    @Query('quality') quality?: string,
+  ) {
     return this.playbackService.getStreamUrl(youtubeId, quality);
   }
 
   @Get('info/:youtubeId')
-  @ApiOperation({ summary: 'Get track info (title, artist, duration, thumbnail)' })
+  @ApiOperation({
+    summary: 'Get track info (title, artist, duration, thumbnail)',
+  })
   getInfo(@Param('youtubeId') youtubeId: string) {
     return this.playbackService.getTrackInfo(youtubeId);
   }
@@ -42,7 +65,10 @@ export class PlaybackController {
   @Get('smart-shuffle')
   @ApiOperation({ summary: 'Smart shuffle - true random, balanced' })
   @ApiQuery({ name: 'playlist', required: true })
-  smartShuffle(@CurrentUser('id') userId: string, @Query('playlist') playlistId: string) {
+  smartShuffle(
+    @CurrentUser('id') userId: string,
+    @Query('playlist') playlistId: string,
+  ) {
     return this.playbackService.smartShuffle(userId, playlistId);
   }
 
@@ -50,30 +76,53 @@ export class PlaybackController {
   @RequireTier('PREMIUM')
   @ApiOperation({ summary: 'AI-powered next track selection (Premium)' })
   @ApiQuery({ name: 'current', required: true })
-  @ApiQuery({ name: 'mode', required: false, enum: ['auto', 'similar', 'diverse'] })
-  nextTrack(@CurrentUser('id') userId: string, @Query('current') current: string, @Query('mode') mode?: string) {
+  @ApiQuery({
+    name: 'mode',
+    required: false,
+    enum: ['auto', 'similar', 'diverse'],
+  })
+  nextTrack(
+    @CurrentUser('id') userId: string,
+    @Query('current') current: string,
+    @Query('mode') mode?: string,
+  ) {
     return this.playbackService.getNextTrack(userId, current, mode);
   }
 
   @Post('session/start')
   @HttpCode(200)
   @ApiOperation({ summary: 'Start playback session' })
-  startSession(@CurrentUser('id') userId: string, @Body() body: { device?: string; quality?: string }) {
+  startSession(
+    @CurrentUser('id') userId: string,
+    @Body() body: { device?: string; quality?: string },
+  ) {
     return this.playbackService.startSession(userId, body);
   }
 
   @Post('session/event')
   @HttpCode(200)
   @ApiOperation({ summary: 'Track playback event (play/pause/skip/seek)' })
-  trackEvent(@CurrentUser('id') userId: string, @Body() body: { sessionId: string; type: string; trackId?: string; position?: number; metadata?: string }) {
+  trackEvent(
+    @CurrentUser('id') userId: string,
+    @Body()
+    body: {
+      sessionId: string;
+      type: string;
+      trackId?: string;
+      position?: number;
+      metadata?: string;
+    },
+  ) {
     return this.playbackService.trackEvent(userId, body);
   }
 
   @Post('session/end')
   @HttpCode(200)
   @ApiOperation({ summary: 'End playback session' })
-  endSession(@CurrentUser('id') userId: string, @Body() body: { sessionId: string }) {
+  endSession(
+    @CurrentUser('id') userId: string,
+    @Body() body: { sessionId: string },
+  ) {
     return this.playbackService.endSession(userId, body.sessionId);
   }
 }
-

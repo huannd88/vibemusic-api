@@ -71,29 +71,40 @@ export class PlaybackService {
         const info = await this.getTrackInfo(id);
         results.push(info);
       } catch (e) {
-        this.logger.warn(`Failed to get info for ${id}: ${(e as Error).message}`);
+        this.logger.warn(
+          `Failed to get info for ${id}: ${(e as Error).message}`,
+        );
       }
     }
     return results;
   }
 
-  private async tryProviders(youtubeId: string, quality?: string): Promise<StreamInfo> {
+  private async tryProviders(
+    youtubeId: string,
+    quality?: string,
+  ): Promise<StreamInfo> {
     // Provider 1: ytdl-core
     try {
       return await this.fetchWithYtdl(youtubeId, quality);
     } catch (e) {
-      this.logger.warn(`ytdl-core failed for ${youtubeId}: ${(e as Error).message}`);
+      this.logger.warn(
+        `ytdl-core failed for ${youtubeId}: ${(e as Error).message}`,
+      );
     }
 
     // Provider 2: youtubei
     try {
       return await this.fetchWithYoutubei(youtubeId, quality);
     } catch (e) {
-      this.logger.warn(`youtubei failed for ${youtubeId}: ${(e as Error).message}`);
+      this.logger.warn(
+        `youtubei failed for ${youtubeId}: ${(e as Error).message}`,
+      );
     }
 
     // Fallback: return YouTube embed URL (won't play audio directly but won't crash)
-    this.logger.warn(`All stream providers failed for ${youtubeId}, returning fallback`);
+    this.logger.warn(
+      `All stream providers failed for ${youtubeId}, returning fallback`,
+    );
     return {
       url: `https://www.youtube.com/watch?v=${youtubeId}`,
       quality: 'fallback',
@@ -102,19 +113,29 @@ export class PlaybackService {
     };
   }
 
-  private async fetchWithYtdl(youtubeId: string, quality?: string): Promise<StreamInfo> {
+  private async fetchWithYtdl(
+    youtubeId: string,
+    quality?: string,
+  ): Promise<StreamInfo> {
     const ytdl = require('ytdl-core');
-    const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${youtubeId}`);
+    const info = await ytdl.getInfo(
+      `https://www.youtube.com/watch?v=${youtubeId}`,
+    );
 
     // Get audio-only formats, sorted by quality
-    const audioFormats = ytdl.filterFormats(info.formats, 'audioonly')
+    const audioFormats = ytdl
+      .filterFormats(info.formats, 'audioonly')
       .sort((a: any, b: any) => (b.audioBitrate || 0) - (a.audioBitrate || 0));
 
-    if (audioFormats.length === 0) throw new Error('No audio formats available');
+    if (audioFormats.length === 0)
+      throw new Error('No audio formats available');
 
     let selected = audioFormats[0]; // Best quality by default
     if (quality === '128k') {
-      selected = audioFormats.find((f: any) => f.audioBitrate && f.audioBitrate <= 128) || audioFormats[audioFormats.length - 1];
+      selected =
+        audioFormats.find(
+          (f: any) => f.audioBitrate && f.audioBitrate <= 128,
+        ) || audioFormats[audioFormats.length - 1];
     }
 
     return {
@@ -126,7 +147,10 @@ export class PlaybackService {
     };
   }
 
-  private async fetchWithYoutubei(youtubeId: string, quality?: string): Promise<StreamInfo> {
+  private async fetchWithYoutubei(
+    youtubeId: string,
+    quality?: string,
+  ): Promise<StreamInfo> {
     const { Innertube } = require('youtubei');
     const yt = await Innertube.create();
     const info = await yt.getInfo(youtubeId);
@@ -146,14 +170,17 @@ export class PlaybackService {
     // Provider 1: ytdl-core
     try {
       const ytdl = require('ytdl-core');
-      const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${youtubeId}`);
+      const info = await ytdl.getInfo(
+        `https://www.youtube.com/watch?v=${youtubeId}`,
+      );
       const details = info.videoDetails;
       const audioFormats = ytdl.filterFormats(info.formats, 'audioonly');
       return {
         youtubeId,
         title: details.title,
         artist: details.author?.name || 'Unknown',
-        thumbnail: details.thumbnails?.[details.thumbnails.length - 1]?.url || '',
+        thumbnail:
+          details.thumbnails?.[details.thumbnails.length - 1]?.url || '',
         duration: parseInt(details.lengthSeconds, 10) || 0,
         formats: audioFormats.map((f: any) => ({
           quality: `${f.audioBitrate || 'unknown'}kbps`,
@@ -162,26 +189,32 @@ export class PlaybackService {
         })),
       };
     } catch (e) {
-      this.logger.warn(`ytdl-core trackInfo failed for ${youtubeId}: ${(e as Error).message}`);
+      this.logger.warn(
+        `ytdl-core trackInfo failed for ${youtubeId}: ${(e as Error).message}`,
+      );
     }
 
     // Provider 2: YouTube oEmbed API (no auth needed, always works)
     try {
       const url = `https://noembed.com/embed?url=https://www.youtube.com/watch?v=${youtubeId}`;
       const resp = await fetch(url);
-      const data = await resp.json() as any;
+      const data = await resp.json();
       if (data.title) {
         return {
           youtubeId,
           title: data.title || 'Unknown',
           artist: data.author_name || 'Unknown',
-          thumbnail: data.thumbnail_url || `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`,
+          thumbnail:
+            data.thumbnail_url ||
+            `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`,
           duration: 0,
           formats: [{ quality: 'auto', mimeType: 'audio/webm' }],
         };
       }
     } catch (e) {
-      this.logger.warn(`oEmbed failed for ${youtubeId}: ${(e as Error).message}`);
+      this.logger.warn(
+        `oEmbed failed for ${youtubeId}: ${(e as Error).message}`,
+      );
     }
 
     // Fallback: return minimal info with YouTube thumbnail
@@ -200,7 +233,9 @@ export class PlaybackService {
   async smartShuffle(userId: string, playlistId: string) {
     const playlist = await this.prisma.playlist.findFirst({
       where: { id: playlistId, userId },
-      include: { tracks: { include: { track: true }, orderBy: { position: 'asc' } } },
+      include: {
+        tracks: { include: { track: true }, orderBy: { position: 'asc' } },
+      },
     });
 
     if (!playlist) return { tracks: [], message: 'Playlist not found' };
@@ -212,12 +247,16 @@ export class PlaybackService {
       [tracks[i], tracks[j]] = [tracks[j], tracks[i]];
     }
 
-    return { tracks: tracks.map(t => t.track), playlistId, shuffled: true };
+    return { tracks: tracks.map((t) => t.track), playlistId, shuffled: true };
   }
 
   async getNextTrack(userId: string, currentYoutubeId: string, mode?: string) {
-    const track = await this.prisma.track.findUnique({ where: { youtubeId: currentYoutubeId } });
-    const trackName = track ? `${track.title} - ${track.artist || 'Unknown'}` : currentYoutubeId;
+    const track = await this.prisma.track.findUnique({
+      where: { youtubeId: currentYoutubeId },
+    });
+    const trackName = track
+      ? `${track.title} - ${track.artist || 'Unknown'}`
+      : currentYoutubeId;
 
     if (!this.ai.isConfigured()) {
       // Fallback: get from user's recent history
@@ -227,23 +266,34 @@ export class PlaybackService {
         orderBy: { listenedAt: 'desc' },
         take: 20,
       });
-      const candidates = history.filter(h => h.track.youtubeId !== currentYoutubeId);
+      const candidates = history.filter(
+        (h) => h.track.youtubeId !== currentYoutubeId,
+      );
       const next = candidates[Math.floor(Math.random() * candidates.length)];
       return { track: next?.track || null, source: 'history-fallback', mode };
     }
 
-    const response = await this.ai.chatJson<{ track: { title: string; artist: string; youtubeQuery: string }; reason: string }>([
+    const response = await this.ai.chatJson<{
+      track: { title: string; artist: string; youtubeQuery: string };
+      reason: string;
+    }>([
       {
         role: 'system',
         content: `Choose the best next track. Mode: ${mode || 'auto'}. Return JSON: {"track": {"title": "...", "artist": "...", "youtubeQuery": "title artist"}, "reason": "why"}`,
       },
-      { role: 'user', content: `Currently playing: "${trackName}". Mode: ${mode || 'auto'}. What should play next?` },
+      {
+        role: 'user',
+        content: `Currently playing: "${trackName}". Mode: ${mode || 'auto'}. What should play next?`,
+      },
     ]);
 
     return { ...response, source: 'ai', mode };
   }
 
-  async startSession(userId: string, data: { device?: string; quality?: string }) {
+  async startSession(
+    userId: string,
+    data: { device?: string; quality?: string },
+  ) {
     const session = await this.prisma.playbackSession.create({
       data: {
         userId,
@@ -253,7 +303,16 @@ export class PlaybackService {
     return { sessionId: session.id, startedAt: session.startedAt };
   }
 
-  async trackEvent(userId: string, data: { sessionId: string; type: string; trackId?: string; position?: number; metadata?: string }) {
+  async trackEvent(
+    userId: string,
+    data: {
+      sessionId: string;
+      type: string;
+      trackId?: string;
+      position?: number;
+      metadata?: string;
+    },
+  ) {
     const session = await this.prisma.playbackSession.findFirst({
       where: { id: data.sessionId, userId },
     });

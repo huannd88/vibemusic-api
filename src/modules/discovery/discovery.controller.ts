@@ -1,5 +1,10 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { DiscoveryService } from './discovery.service';
 
@@ -61,7 +66,10 @@ export class DiscoveryController {
   @Get('genres/:code/videos')
   @ApiOperation({ summary: 'Videos by genre' })
   @ApiQuery({ name: 'region', required: false, example: 'VN' })
-  getGenreVideos(@Param('code') code: string, @Query('region') region?: string) {
+  getGenreVideos(
+    @Param('code') code: string,
+    @Query('region') region?: string,
+  ) {
     return this.discoveryService.getGenreVideos(code, region);
   }
 

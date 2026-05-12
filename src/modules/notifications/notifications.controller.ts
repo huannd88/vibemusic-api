@@ -31,7 +31,10 @@ export class NotificationsController {
 
   @Put('settings')
   @ApiOperation({ summary: 'Update notification settings' })
-  updateSettings(@CurrentUser('id') userId: string, @Body() settings: Record<string, boolean>) {
+  updateSettings(
+    @CurrentUser('id') userId: string,
+    @Body() settings: Record<string, boolean>,
+  ) {
     return this.notificationsService.updateSettings(userId, settings);
   }
 }

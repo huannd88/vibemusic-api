@@ -18,10 +18,15 @@ export class MoodService {
       return { mood: 'neutral', confidence: 0, source: 'ai-not-configured' };
     }
 
-    const result = await this.ai.chatJson<{ mood: string; confidence: number; keywords: string[] }>([
+    const result = await this.ai.chatJson<{
+      mood: string;
+      confidence: number;
+      keywords: string[];
+    }>([
       {
         role: 'system',
-        content: 'Detect the mood/emotion from user text. Return JSON: {"mood": "happy|sad|energetic|calm|romantic|melancholy|angry|nostalgic|focused|party", "confidence": 0.0-1.0, "keywords": ["detected", "mood", "words"]}',
+        content:
+          'Detect the mood/emotion from user text. Return JSON: {"mood": "happy|sad|energetic|calm|romantic|melancholy|angry|nostalgic|focused|party", "confidence": 0.0-1.0, "keywords": ["detected", "mood", "words"]}',
       },
       { role: 'user', content: text },
     ]);
@@ -39,17 +44,27 @@ export class MoodService {
       return { tracks: [], mood: 'unknown', source: 'ai-not-configured' };
     }
 
-    const response = await this.ai.chatJson<{ mood: string; tracks: { title: string; artist: string; youtubeQuery: string }[]; playlistTitle: string }>([
+    const response = await this.ai.chatJson<{
+      mood: string;
+      tracks: { title: string; artist: string; youtubeQuery: string }[];
+      playlistTitle: string;
+    }>([
       {
         role: 'system',
-        content: 'Create a playlist matching the mood described. Return JSON: {"mood": "detected_mood", "playlistTitle": "creative playlist name", "tracks": [{"title": "...", "artist": "...", "youtubeQuery": "title artist"}]} with 15 tracks.',
+        content:
+          'Create a playlist matching the mood described. Return JSON: {"mood": "detected_mood", "playlistTitle": "creative playlist name", "tracks": [{"title": "...", "artist": "...", "youtubeQuery": "title artist"}]} with 15 tracks.',
       },
       { role: 'user', content: `Create a playlist for: "${description}"` },
     ]);
 
     // Save mood history
     await this.prisma.moodHistory.create({
-      data: { userId, mood: response.mood, source: 'playlist', input: description },
+      data: {
+        userId,
+        mood: response.mood,
+        source: 'playlist',
+        input: description,
+      },
     });
 
     return { ...response, source: 'ai' };
@@ -80,19 +95,31 @@ export class MoodService {
 
     if (!this.ai.isConfigured()) {
       const defaultMoods: Record<string, string> = {
-        morning: 'energetic', afternoon: 'focused', evening: 'calm', night: 'romantic',
+        morning: 'energetic',
+        afternoon: 'focused',
+        evening: 'calm',
+        night: 'romantic',
       };
-      return { mood: defaultMoods[timeContext], timeOfDay: timeContext, source: 'default' };
+      return {
+        mood: defaultMoods[timeContext],
+        timeOfDay: timeContext,
+        source: 'default',
+      };
     }
 
-    const response = await this.ai.chatJson<{ mood: string; reason: string; suggestedPlaylistTitle: string }>([
+    const response = await this.ai.chatJson<{
+      mood: string;
+      reason: string;
+      suggestedPlaylistTitle: string;
+    }>([
       {
         role: 'system',
-        content: 'Suggest a "Mood of the Day" for the user. Consider time of day and recent mood patterns. Return JSON: {"mood": "...", "reason": "why this mood", "suggestedPlaylistTitle": "creative title"}',
+        content:
+          'Suggest a "Mood of the Day" for the user. Consider time of day and recent mood patterns. Return JSON: {"mood": "...", "reason": "why this mood", "suggestedPlaylistTitle": "creative title"}',
       },
       {
         role: 'user',
-        content: `Time: ${timeContext}. Recent moods: ${recentMoods.map(m => m.mood).join(', ') || 'none'}. Suggest mood of the day.`,
+        content: `Time: ${timeContext}. Recent moods: ${recentMoods.map((m) => m.mood).join(', ') || 'none'}. Suggest mood of the day.`,
       },
     ]);
 
@@ -101,15 +128,31 @@ export class MoodService {
 
   async generateProgression(userId: string, fromMood: string, toMood: string) {
     if (!this.ai.isConfigured()) {
-      return { tracks: [], from: fromMood, to: toMood, source: 'ai-not-configured' };
+      return {
+        tracks: [],
+        from: fromMood,
+        to: toMood,
+        source: 'ai-not-configured',
+      };
     }
 
-    const response = await this.ai.chatJson<{ tracks: { title: string; artist: string; youtubeQuery: string; moodStage: string }[]; stages: string[] }>([
+    const response = await this.ai.chatJson<{
+      tracks: {
+        title: string;
+        artist: string;
+        youtubeQuery: string;
+        moodStage: string;
+      }[];
+      stages: string[];
+    }>([
       {
         role: 'system',
         content: `Create an emotional progression playlist that gradually shifts from "${fromMood}" to "${toMood}". Return JSON: {"stages": ["${fromMood}", "transition1", "transition2", "${toMood}"], "tracks": [{"title": "...", "artist": "...", "youtubeQuery": "title artist", "moodStage": "stage_name"}]} with 15-20 tracks.`,
       },
-      { role: 'user', content: `Create emotional progression: ${fromMood} → ${toMood}` },
+      {
+        role: 'user',
+        content: `Create emotional progression: ${fromMood} → ${toMood}`,
+      },
     ]);
 
     await this.prisma.moodHistory.create({

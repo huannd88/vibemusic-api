@@ -31,7 +31,9 @@ export class SearchService {
         youtubeId: item.id,
         title: item.title?.text || item.title || '',
         artist: item.channel?.name || item.author?.name || '',
-        thumbnail: item.thumbnails?.[0]?.url || `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`,
+        thumbnail:
+          item.thumbnails?.[0]?.url ||
+          `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`,
         duration: item.duration?.seconds || 0,
         viewCount: item.view_count?.text || item.viewCount || '',
         type,
@@ -42,7 +44,12 @@ export class SearchService {
       return response;
     } catch (e) {
       this.logger.error(`Search failed: ${(e as Error).message}`);
-      return { results: [], query, type, error: 'Search temporarily unavailable' };
+      return {
+        results: [],
+        query,
+        type,
+        error: 'Search temporarily unavailable',
+      };
     }
   }
 

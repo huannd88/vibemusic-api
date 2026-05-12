@@ -7,8 +7,13 @@ import { IsString, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 class PurchaseDto {
-  @ApiProperty({ example: 'premium', enum: ['premium', 'pro'] }) @IsString() planId: string;
-  @ApiPropertyOptional({ description: 'App Store / Play Store receipt' }) @IsOptional() @IsString() receipt?: string;
+  @ApiProperty({ example: 'premium', enum: ['premium', 'pro'] })
+  @IsString()
+  planId: string;
+  @ApiPropertyOptional({ description: 'App Store / Play Store receipt' })
+  @IsOptional()
+  @IsString()
+  receipt?: string;
 }
 class RestoreDto {
   @ApiProperty() @IsString() receipt: string;
@@ -64,7 +69,10 @@ export class SubscriptionsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Apply referral code for bonus days' })
-  applyReferral(@CurrentUser('id') userId: string, @Body() dto: ApplyReferralDto) {
+  applyReferral(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ApplyReferralDto,
+  ) {
     return this.subscriptionsService.applyReferral(userId, dto);
   }
 }

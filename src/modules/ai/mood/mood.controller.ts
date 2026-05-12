@@ -1,4 +1,11 @@
-import { Controller, Get, Post, Body, UseGuards, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  HttpCode,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TierGuard, RequireTier } from '../../../common/guards/tier.guard';
@@ -8,10 +15,14 @@ import { IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 class DetectMoodDto {
-  @ApiProperty({ example: 'buồn quá, muốn nghe nhạc chill' }) @IsString() text: string;
+  @ApiProperty({ example: 'buồn quá, muốn nghe nhạc chill' })
+  @IsString()
+  text: string;
 }
 class MoodPlaylistDto {
-  @ApiProperty({ example: 'nhạc chill buổi tối cho coding' }) @IsString() description: string;
+  @ApiProperty({ example: 'nhạc chill buổi tối cho coding' })
+  @IsString()
+  description: string;
 }
 class ProgressionDto {
   @ApiProperty({ example: 'sad' }) @IsString() from: string;
@@ -58,7 +69,9 @@ export class MoodController {
   @Post('progression')
   @HttpCode(200)
   @RequireTier('PREMIUM')
-  @ApiOperation({ summary: 'Emotional progression playlist (sad → happy) (Premium)' })
+  @ApiOperation({
+    summary: 'Emotional progression playlist (sad → happy) (Premium)',
+  })
   progression(@CurrentUser('id') userId: string, @Body() dto: ProgressionDto) {
     return this.moodService.generateProgression(userId, dto.from, dto.to);
   }

@@ -16,7 +16,7 @@ export class AutoPlayService {
   async play(userId: string) {
     // Get user preferences
     const prefsKey = `autoplay:settings:${userId}`;
-    const prefs = await this.redis.getJson<any>(prefsKey) || {
+    const prefs = (await this.redis.getJson<any>(prefsKey)) || {
       mode: 'smart',
       genres: [],
       avoidExplicit: false,
@@ -50,10 +50,16 @@ export class AutoPlayService {
           context: { timeOfDay: timeContext },
         };
       }
-      return { track: null, reason: 'No history. Play something first!', source: 'empty' };
+      return {
+        track: null,
+        reason: 'No history. Play something first!',
+        source: 'empty',
+      };
     }
 
-    const recentTracks = history.map(h => `${h.track.title} - ${h.track.artist || 'Unknown'}`);
+    const recentTracks = history.map(
+      (h) => `${h.track.title} - ${h.track.artist || 'Unknown'}`,
+    );
     const response = await this.ai.chatJson<{
       track: { title: string; artist: string; youtubeQuery: string };
       reason: string;
@@ -78,18 +84,20 @@ export class AutoPlayService {
   async getSettings(userId: string) {
     const prefsKey = `autoplay:settings:${userId}`;
     const prefs = await this.redis.getJson<any>(prefsKey);
-    return prefs || {
-      mode: 'smart',
-      genres: [],
-      avoidExplicit: false,
-      maxDuration: 600,
-      enabled: true,
-    };
+    return (
+      prefs || {
+        mode: 'smart',
+        genres: [],
+        avoidExplicit: false,
+        maxDuration: 600,
+        enabled: true,
+      }
+    );
   }
 
   async updateSettings(userId: string, settings: Record<string, any>) {
     const prefsKey = `autoplay:settings:${userId}`;
-    const current = await this.redis.getJson<any>(prefsKey) || {};
+    const current = (await this.redis.getJson<any>(prefsKey)) || {};
     const updated = { ...current, ...settings };
     await this.redis.setJson(prefsKey, updated, 365 * 24 * 3600);
     return { message: 'Settings saved', settings: updated };

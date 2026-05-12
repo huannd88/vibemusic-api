@@ -1,12 +1,30 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import helmet from 'helmet';
+import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { isApi, isProduction, getAppRole } from './common/app-role';
+import { RedisIoAdapter } from './common/redis.adapter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const logger = new Logger('Bootstrap');
+  const appRole = getAppRole();
+  const isProd = isProduction();
 
-  // Global validation pipe
+  const app = await NestFactory.create(AppModule, {
+    logger: isProd
+      ? ['error', 'warn', 'log']
+      : ['error', 'warn', 'log', 'debug', 'verbose'],
+  });
+
+  // ─── Security Middleware ────────────────────────────
+  app.use(helmet());
+  app.use(compression());
+  app.use(cookieParser());
+
+  // ─── Global Validation Pipe ─────────────────────────
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -15,34 +33,69 @@ async function bootstrap() {
     }),
   );
 
-  // CORS
+  // ─── Graceful Shutdown ──────────────────────────────
+  app.enableShutdownHooks();
+
+  // ─── CORS — env-driven ─────────────────────────────
+  const corsOrigins = process.env.CORS_ORIGINS;
   app.enableCors({
-    origin: '*',
+    origin:
+      isProd && corsOrigins
+        ? corsOrigins.split(',').map((o) => o.trim())
+        : true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
 
-  // Swagger
-  const config = new DocumentBuilder()
-    .setTitle('VibeMusic API')
-    .setDescription('AI Music OS — Your Personal AI DJ')
-    .setVersion('1.0.0')
-    .addBearerAuth()
-    .addTag('system', 'Health & Config')
-    .addTag('auth', 'Authentication')
-    .addTag('users', 'User Management')
-    .addTag('playback', 'Streaming & Playback')
-    .addTag('search', 'Search & Autocomplete')
-    .addTag('discovery', 'Trending, Charts, Genres, Mood')
-    .addTag('playlists', 'Playlist Management')
-    .addTag('library', 'Favorites, History, Queue, Backup')
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api-docs', app, document);
+  // ─── WebSocket Redis Adapter (API mode only) ───────
+  if (isApi()) {
+    const redisAdapter = new RedisIoAdapter(app);
+    await redisAdapter.connectToRedis();
+    app.useWebSocketAdapter(redisAdapter);
+  }
 
-  const port = process.env.PORT || 3000;
-  await app.listen(port);
-  console.log(`🎵 VibeMusic API running on http://localhost:${port}`);
-  console.log(`📚 Swagger UI: http://localhost:${port}/api-docs`);
+  // ─── Swagger — disabled in production ──────────────
+  if (!isProd) {
+    const config = new DocumentBuilder()
+      .setTitle('VibeMusic API')
+      .setDescription('AI Music OS — Your Personal AI DJ')
+      .setVersion(process.env.npm_package_version || '0.0.1')
+      .addBearerAuth()
+      .addTag('system', 'Health & Config')
+      .addTag('auth', 'Authentication')
+      .addTag('users', 'User Management')
+      .addTag('playback', 'Streaming & Playback')
+      .addTag('search', 'Search & Autocomplete')
+      .addTag('discovery', 'Trending, Charts, Genres, Mood')
+      .addTag('discovery-sync', 'Manual data sync triggers')
+      .addTag('playlists', 'Playlist Management')
+      .addTag('library', 'Favorites, History, Queue, Backup')
+      .addTag('ai', 'AI Features')
+      .addTag('lyrics', 'Lyrics')
+      .addTag('social', 'Social Features')
+      .addTag('notifications', 'Notifications')
+      .addTag('subscriptions', 'Subscriptions')
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api-docs', app, document);
+  }
+
+  // ─── Start ─────────────────────────────────────────
+  if (isApi()) {
+    const port = process.env.PORT || 3000;
+    await app.listen(port);
+    logger.log(
+      `🎵 VibeMusic [${appRole.toUpperCase()}] running on http://0.0.0.0:${port}`,
+    );
+    if (!isProd) {
+      logger.log(`📚 Swagger UI: http://localhost:${port}/api-docs`);
+    }
+  } else {
+    // Worker mode — no HTTP, just init app for cron/seed
+    await app.init();
+    logger.log(
+      `🔧 VibeMusic [WORKER] started — cron jobs active, no HTTP listener`,
+    );
+  }
 }
 bootstrap();

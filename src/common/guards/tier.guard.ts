@@ -1,4 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, SetMetadata } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  SetMetadata,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 export const TIER_KEY = 'requiredTier';
@@ -37,7 +43,9 @@ export class TierGuard implements CanActivate {
     }
 
     const userTierLevel = TIER_HIERARCHY[user.tier] ?? 0;
-    const minRequired = Math.min(...requiredTiers.map(t => TIER_HIERARCHY[t] ?? 0));
+    const minRequired = Math.min(
+      ...requiredTiers.map((t) => TIER_HIERARCHY[t] ?? 0),
+    );
 
     if (userTierLevel < minRequired) {
       throw new ForbiddenException(

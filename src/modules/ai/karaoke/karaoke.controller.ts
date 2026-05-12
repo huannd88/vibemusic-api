@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, UseGuards, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  HttpCode,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TierGuard, RequireTier } from '../../../common/guards/tier.guard';
@@ -23,7 +31,10 @@ export class KaraokeController {
   @Post('prepare/:youtubeId')
   @HttpCode(200)
   @ApiOperation({ summary: 'Start vocal separation for karaoke (Premium)' })
-  prepare(@CurrentUser('id') userId: string, @Param('youtubeId') youtubeId: string) {
+  prepare(
+    @CurrentUser('id') userId: string,
+    @Param('youtubeId') youtubeId: string,
+  ) {
     return this.karaokeService.prepare(userId, youtubeId);
   }
 

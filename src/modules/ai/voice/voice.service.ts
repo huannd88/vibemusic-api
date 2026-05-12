@@ -17,24 +17,35 @@ export class VoiceService {
     // For now, return a stub indicating the audio processing pipeline
     const responseId = nanoid(12);
 
-    await this.redis.setJson(`voice:response:${responseId}`, {
-      id: responseId,
-      userId,
-      status: 'processing',
-      message: 'Audio command received. STT integration required (Whisper API / Google Speech-to-Text).',
-      createdAt: new Date().toISOString(),
-    }, 3600);
+    await this.redis.setJson(
+      `voice:response:${responseId}`,
+      {
+        id: responseId,
+        userId,
+        status: 'processing',
+        message:
+          'Audio command received. STT integration required (Whisper API / Google Speech-to-Text).',
+        createdAt: new Date().toISOString(),
+      },
+      3600,
+    );
 
     return {
       responseId,
       status: 'processing',
-      message: 'Audio STT requires Whisper API integration. Use /ai/voice/text-command as fallback.',
+      message:
+        'Audio STT requires Whisper API integration. Use /ai/voice/text-command as fallback.',
     };
   }
 
   async processTextCommand(userId: string, text: string) {
     if (!this.ai.isConfigured()) {
-      return { intent: 'unknown', action: null, response: 'AI not configured', source: 'fallback' };
+      return {
+        intent: 'unknown',
+        action: null,
+        response: 'AI not configured',
+        source: 'fallback',
+      };
     }
 
     const response = await this.ai.chatJson<{
@@ -57,19 +68,25 @@ Examples:
     ]);
 
     const responseId = nanoid(12);
-    await this.redis.setJson(`voice:response:${responseId}`, {
-      id: responseId,
-      userId,
-      ...response,
-      originalText: text,
-      createdAt: new Date().toISOString(),
-    }, 3600);
+    await this.redis.setJson(
+      `voice:response:${responseId}`,
+      {
+        id: responseId,
+        userId,
+        ...response,
+        originalText: text,
+        createdAt: new Date().toISOString(),
+      },
+      3600,
+    );
 
     return { responseId, ...response };
   }
 
   async getResponse(responseId: string) {
-    const response = await this.redis.getJson<any>(`voice:response:${responseId}`);
+    const response = await this.redis.getJson<any>(
+      `voice:response:${responseId}`,
+    );
     if (!response) return { error: 'Response not found or expired' };
     return response;
   }

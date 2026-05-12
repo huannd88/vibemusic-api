@@ -15,7 +15,11 @@ export class MemoryService {
 
   async onThisDay(userId: string) {
     const today = new Date();
-    const startOfDay = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+    const startOfDay = new Date(
+      today.getFullYear() - 1,
+      today.getMonth(),
+      today.getDate(),
+    );
     const endOfDay = new Date(startOfDay);
     endOfDay.setDate(endOfDay.getDate() + 1);
 
@@ -32,12 +36,15 @@ export class MemoryService {
     return {
       date: startOfDay.toISOString().split('T')[0],
       tracksPlayed: history.length,
-      tracks: history.map(h => ({
+      tracks: history.map((h) => ({
         ...h.track,
         listenedAt: h.listenedAt,
         durationPlayed: h.durationPlayed,
       })),
-      message: history.length === 0 ? 'No listening history from this day last year' : undefined,
+      message:
+        history.length === 0
+          ? 'No listening history from this day last year'
+          : undefined,
     };
   }
 
@@ -58,22 +65,37 @@ export class MemoryService {
       return { tracks: [], message: 'No listening history yet' };
     }
 
-    const tracks = oldHistory.map(h => h.track);
-    const uniqueTracks = [...new Map(tracks.map(t => [t.youtubeId, t])).values()];
+    const tracks = oldHistory.map((h) => h.track);
+    const uniqueTracks = [
+      ...new Map(tracks.map((t) => [t.youtubeId, t])).values(),
+    ];
 
     if (!this.ai.isConfigured()) {
-      const result = { tracks: uniqueTracks.slice(0, 20), source: 'history', period: period || 'all-time' };
+      const result = {
+        tracks: uniqueTracks.slice(0, 20),
+        source: 'history',
+        period: period || 'all-time',
+      };
       await this.redis.setJson(cacheKey, result, 24 * 3600);
       return result;
     }
 
-    const trackNames = uniqueTracks.slice(0, 20).map(t => `${t.title} - ${t.artist || 'Unknown'}`);
-    const response = await this.ai.chatJson<{ playlistTitle: string; description: string; tracks: { title: string; artist: string; youtubeQuery: string }[] }>([
+    const trackNames = uniqueTracks
+      .slice(0, 20)
+      .map((t) => `${t.title} - ${t.artist || 'Unknown'}`);
+    const response = await this.ai.chatJson<{
+      playlistTitle: string;
+      description: string;
+      tracks: { title: string; artist: string; youtubeQuery: string }[];
+    }>([
       {
         role: 'system',
         content: `Create a nostalgia mix. The user's old favorites are listed below. Mix in similar songs from that era. Return JSON: {"playlistTitle": "creative title", "description": "playlist description", "tracks": [{"title": "...", "artist": "...", "youtubeQuery": "title artist"}]} with 20 tracks.`,
       },
-      { role: 'user', content: `Old favorites: ${trackNames.join(', ')}. Period: ${period || 'all-time'}. Create nostalgia mix.` },
+      {
+        role: 'user',
+        content: `Old favorites: ${trackNames.join(', ')}. Period: ${period || 'all-time'}. Create nostalgia mix.`,
+      },
     ]);
 
     const result = { ...response, source: 'ai', period: period || 'all-time' };
@@ -100,7 +122,10 @@ export class MemoryService {
     // Calculate basic patterns
     const hourMap: Record<number, number> = {};
     const dayMap: Record<number, number> = {};
-    const trackCounts: Record<string, { count: number; title: string; artist: string | null }> = {};
+    const trackCounts: Record<
+      string,
+      { count: number; title: string; artist: string | null }
+    > = {};
 
     for (const h of history) {
       const hour = new Date(h.listenedAt).getHours();
@@ -109,22 +134,43 @@ export class MemoryService {
       dayMap[day] = (dayMap[day] || 0) + 1;
 
       const key = h.track.youtubeId;
-      if (!trackCounts[key]) trackCounts[key] = { count: 0, title: h.track.title, artist: h.track.artist };
+      if (!trackCounts[key])
+        trackCounts[key] = {
+          count: 0,
+          title: h.track.title,
+          artist: h.track.artist,
+        };
       trackCounts[key].count++;
     }
 
     const peakHour = Object.entries(hourMap).sort((a, b) => b[1] - a[1])[0];
     const peakDay = Object.entries(dayMap).sort((a, b) => b[1] - a[1])[0];
-    const topTracks = Object.entries(trackCounts).sort((a, b) => b[1].count - a[1].count).slice(0, 10);
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const topTracks = Object.entries(trackCounts)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 10);
+    const dayNames = [
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+    ];
 
     const result = {
       totalListens: history.length,
-      peakListeningHour: peakHour ? { hour: +peakHour[0], count: peakHour[1] } : null,
-      peakListeningDay: peakDay ? { day: dayNames[+peakDay[0]], count: peakDay[1] } : null,
+      peakListeningHour: peakHour
+        ? { hour: +peakHour[0], count: peakHour[1] }
+        : null,
+      peakListeningDay: peakDay
+        ? { day: dayNames[+peakDay[0]], count: peakDay[1] }
+        : null,
       topTracks: topTracks.map(([id, data]) => ({ youtubeId: id, ...data })),
       listeningByHour: hourMap,
-      listeningByDay: Object.fromEntries(Object.entries(dayMap).map(([k, v]) => [dayNames[+k], v])),
+      listeningByDay: Object.fromEntries(
+        Object.entries(dayMap).map(([k, v]) => [dayNames[+k], v]),
+      ),
     };
 
     await this.redis.setJson(cacheKey, result, 6 * 3600);
@@ -134,9 +180,18 @@ export class MemoryService {
   async seasonal(userId: string) {
     const month = new Date().getMonth();
     const seasonMap: Record<number, string> = {
-      0: 'winter', 1: 'winter', 2: 'spring', 3: 'spring', 4: 'spring',
-      5: 'summer', 6: 'summer', 7: 'summer', 8: 'autumn', 9: 'autumn',
-      10: 'autumn', 11: 'winter',
+      0: 'winter',
+      1: 'winter',
+      2: 'spring',
+      3: 'spring',
+      4: 'spring',
+      5: 'summer',
+      6: 'summer',
+      7: 'summer',
+      8: 'autumn',
+      9: 'autumn',
+      10: 'autumn',
+      11: 'winter',
     };
     const season = seasonMap[month];
 
@@ -155,12 +210,18 @@ export class MemoryService {
     const cached = await this.redis.getJson<any>(cacheKey);
     if (cached) return cached;
 
-    const response = await this.ai.chatJson<{ tracks: { title: string; artist: string; youtubeQuery: string }[]; playlistTitle: string }>([
+    const response = await this.ai.chatJson<{
+      tracks: { title: string; artist: string; youtubeQuery: string }[];
+      playlistTitle: string;
+    }>([
       {
         role: 'system',
         content: `Create a seasonal playlist for ${season}${holiday ? ` with ${holiday} theme` : ''}. Mix international and Vietnamese songs. Return JSON: {"playlistTitle": "creative title", "tracks": [{"title": "...", "artist": "...", "youtubeQuery": "title artist"}]} with 15 tracks.`,
       },
-      { role: 'user', content: `Season: ${season}. Holiday: ${holiday || 'none'}. Create seasonal mix.` },
+      {
+        role: 'user',
+        content: `Season: ${season}. Holiday: ${holiday || 'none'}. Create seasonal mix.`,
+      },
     ]);
 
     const result = { season, holiday, ...response, source: 'ai' };

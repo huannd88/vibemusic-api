@@ -43,7 +43,10 @@ export class LyricsService {
 
     // Try LRCLIB API (free, no auth)
     try {
-      const lyrics = await this.fetchFromLrcLib(trackInfo.title, trackInfo.artist);
+      const lyrics = await this.fetchFromLrcLib(
+        trackInfo.title,
+        trackInfo.artist,
+      );
       if (lyrics) {
         const result = {
           youtubeId,
@@ -60,7 +63,9 @@ export class LyricsService {
         return result;
       }
     } catch (e) {
-      this.logger.warn(`LRCLIB failed for ${trackInfo.title}: ${(e as Error).message}`);
+      this.logger.warn(
+        `LRCLIB failed for ${trackInfo.title}: ${(e as Error).message}`,
+      );
     }
 
     // No lyrics found
@@ -101,7 +106,12 @@ export class LyricsService {
           hasLyrics: !!item.plainLyrics || !!item.syncedLyrics,
           hasSyncedLyrics: !!item.syncedLyrics,
         }));
-        const result = { query, results, total: results.length, source: 'lrclib' };
+        const result = {
+          query,
+          results,
+          total: results.length,
+          source: 'lrclib',
+        };
         await this.redis.setJson(cacheKey, result, 3600);
         return result;
       }
@@ -109,22 +119,41 @@ export class LyricsService {
       this.logger.warn(`LRCLIB search failed: ${(e as Error).message}`);
     }
 
-    const result = { query, results: [], total: 0, source: 'none', message: 'No results found' };
+    const result = {
+      query,
+      results: [],
+      total: 0,
+      source: 'none',
+      message: 'No results found',
+    };
     await this.redis.setJson(cacheKey, result, 3600);
     return result;
   }
 
   async translateLyrics(youtubeId: string, targetLang: string) {
     if (!this.ai.isConfigured()) {
-      return { youtubeId, translated: null, targetLang, source: 'ai-not-configured' };
+      return {
+        youtubeId,
+        translated: null,
+        targetLang,
+        source: 'ai-not-configured',
+      };
     }
 
     const lyricsData = await this.getLyrics(youtubeId);
     if (!lyricsData.lyrics) {
-      return { youtubeId, translated: null, targetLang, message: 'No lyrics available to translate' };
+      return {
+        youtubeId,
+        translated: null,
+        targetLang,
+        message: 'No lyrics available to translate',
+      };
     }
 
-    const response = await this.ai.chatJson<{ translated: string; originalLang: string }>([
+    const response = await this.ai.chatJson<{
+      translated: string;
+      originalLang: string;
+    }>([
       {
         role: 'system',
         content: `Translate these song lyrics to ${targetLang}. Preserve the poetic feel. Return JSON: {"translated": "translated lyrics line by line", "originalLang": "detected language"}`,
@@ -137,7 +166,10 @@ export class LyricsService {
 
   // --- Private helpers ---
 
-  private async fetchFromLrcLib(title: string, artist?: string): Promise<LrcLibResult | null> {
+  private async fetchFromLrcLib(
+    title: string,
+    artist?: string,
+  ): Promise<LrcLibResult | null> {
     // Clean title: remove common YouTube suffixes
     const cleanTitle = title
       .replace(/\s*\(Official\s*(Music\s*)?Video\)/i, '')
@@ -190,23 +222,29 @@ export class LyricsService {
         const results = (await resp.json()) as LrcLibResult[];
         if (results.length > 0) {
           // Return the first result with lyrics
-          const withLyrics = results.find((r) => r.plainLyrics || r.syncedLyrics);
+          const withLyrics = results.find(
+            (r) => r.plainLyrics || r.syncedLyrics,
+          );
           return withLyrics || null;
         }
       }
     } catch (e) {
-      this.logger.warn(`LRCLIB search fallback failed: ${(e as Error).message}`);
+      this.logger.warn(
+        `LRCLIB search fallback failed: ${(e as Error).message}`,
+      );
     }
 
     return null;
   }
 
-  private async getTrackMetadata(youtubeId: string): Promise<{ title: string; artist?: string } | null> {
+  private async getTrackMetadata(
+    youtubeId: string,
+  ): Promise<{ title: string; artist?: string } | null> {
     // Try oEmbed for quick metadata
     try {
       const url = `https://noembed.com/embed?url=https://www.youtube.com/watch?v=${youtubeId}`;
       const resp = await fetch(url);
-      const data = (await resp.json()) as any;
+      const data = await resp.json();
       if (data.title) {
         // Parse "Artist - Title (Official Video)" format common on YouTube
         let title = data.title;
@@ -222,7 +260,9 @@ export class LyricsService {
         return { title, artist };
       }
     } catch (e) {
-      this.logger.warn(`oEmbed metadata failed for ${youtubeId}: ${(e as Error).message}`);
+      this.logger.warn(
+        `oEmbed metadata failed for ${youtubeId}: ${(e as Error).message}`,
+      );
     }
     return null;
   }

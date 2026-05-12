@@ -1,9 +1,32 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { LibraryService } from './library.service';
-import { IsString, IsOptional, IsNumber, IsBoolean, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+  IsArray,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 class AddHistoryDto {
@@ -13,7 +36,10 @@ class AddHistoryDto {
   @ApiPropertyOptional() @IsOptional() @IsString() context?: string;
 }
 class UpdateQueueDto {
-  @ApiProperty({ type: [String] }) @IsArray() @IsString({ each: true }) tracks: string[];
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  tracks: string[];
   @ApiProperty() @IsNumber() currentIndex: number;
 }
 class RestoreDto {
@@ -36,13 +62,19 @@ export class LibraryController {
 
   @Post('favorites/:youtubeId')
   @ApiOperation({ summary: 'Add to favorites' })
-  addFavorite(@CurrentUser('id') userId: string, @Param('youtubeId') youtubeId: string) {
+  addFavorite(
+    @CurrentUser('id') userId: string,
+    @Param('youtubeId') youtubeId: string,
+  ) {
     return this.libraryService.addFavorite(userId, youtubeId);
   }
 
   @Delete('favorites/:youtubeId')
   @ApiOperation({ summary: 'Remove from favorites' })
-  removeFavorite(@CurrentUser('id') userId: string, @Param('youtubeId') youtubeId: string) {
+  removeFavorite(
+    @CurrentUser('id') userId: string,
+    @Param('youtubeId') youtubeId: string,
+  ) {
     return this.libraryService.removeFavorite(userId, youtubeId);
   }
 
@@ -51,8 +83,16 @@ export class LibraryController {
   @ApiOperation({ summary: 'Listening history' })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'offset', required: false, type: Number })
-  getHistory(@CurrentUser('id') userId: string, @Query('limit') limit?: number, @Query('offset') offset?: number) {
-    return this.libraryService.getHistory(userId, limit ? +limit : 50, offset ? +offset : 0);
+  getHistory(
+    @CurrentUser('id') userId: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ) {
+    return this.libraryService.getHistory(
+      userId,
+      limit ? +limit : 50,
+      offset ? +offset : 0,
+    );
   }
 
   @Post('history')

@@ -1,4 +1,12 @@
-import { Controller, Get, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -38,7 +46,10 @@ export class UsersController {
 
   @Delete('me/devices/:id')
   @ApiOperation({ summary: 'Remove device' })
-  removeDevice(@CurrentUser('id') userId: string, @Param('id') deviceId: string) {
+  removeDevice(
+    @CurrentUser('id') userId: string,
+    @Param('id') deviceId: string,
+  ) {
     return this.usersService.removeDevice(userId, deviceId);
   }
 

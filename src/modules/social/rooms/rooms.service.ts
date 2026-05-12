@@ -11,7 +11,15 @@ export class RoomsService {
     private redis: RedisService,
   ) {}
 
-  async create(userId: string, data: { name: string; description?: string; isPublic?: boolean; maxUsers?: number }) {
+  async create(
+    userId: string,
+    data: {
+      name: string;
+      description?: string;
+      isPublic?: boolean;
+      maxUsers?: number;
+    },
+  ) {
     const room = await this.prisma.listeningRoom.create({
       data: {
         name: data.name,
@@ -28,12 +36,16 @@ export class RoomsService {
     });
 
     // Cache room state
-    await this.redis.setJson(`room:state:${room.id}`, {
-      currentTrack: null,
-      playbackState: 'idle',
-      position: 0,
-      updatedAt: new Date().toISOString(),
-    }, 24 * 3600);
+    await this.redis.setJson(
+      `room:state:${room.id}`,
+      {
+        currentTrack: null,
+        playbackState: 'idle',
+        position: 0,
+        updatedAt: new Date().toISOString(),
+      },
+      24 * 3600,
+    );
 
     return { ...room, participantCount: 1 };
   }
@@ -49,7 +61,7 @@ export class RoomsService {
       take: 50,
     });
 
-    return rooms.map(r => ({
+    return rooms.map((r) => ({
       ...r,
       participantCount: r._count.participants,
       _count: undefined,
@@ -63,7 +75,9 @@ export class RoomsService {
         host: { select: { id: true, name: true, avatarUrl: true } },
         participants: {
           where: { leftAt: null },
-          include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+          include: {
+            user: { select: { id: true, name: true, avatarUrl: true } },
+          },
         },
       },
     });
@@ -72,17 +86,23 @@ export class RoomsService {
 
     const state = await this.redis.getJson<any>(`room:state:${roomId}`);
 
-    return { ...room, playbackState: state || { currentTrack: null, playbackState: 'idle' } };
+    return {
+      ...room,
+      playbackState: state || { currentTrack: null, playbackState: 'idle' },
+    };
   }
 
   async join(userId: string, roomId: string) {
     const room = await this.prisma.listeningRoom.findUnique({
       where: { id: roomId },
-      include: { _count: { select: { participants: { where: { leftAt: null } } } } },
+      include: {
+        _count: { select: { participants: { where: { leftAt: null } } } },
+      },
     });
 
     if (!room || room.closedAt) return { error: 'Room not found or closed' };
-    if (room._count.participants >= room.maxUsers) return { error: 'Room is full' };
+    if (room._count.participants >= room.maxUsers)
+      return { error: 'Room is full' };
 
     // Upsert participant
     const existing = await this.prisma.roomParticipant.findUnique({
@@ -121,7 +141,9 @@ export class RoomsService {
   }
 
   async deleteRoom(userId: string, roomId: string) {
-    const room = await this.prisma.listeningRoom.findUnique({ where: { id: roomId } });
+    const room = await this.prisma.listeningRoom.findUnique({
+      where: { id: roomId },
+    });
     if (!room) return { error: 'Room not found' };
     if (room.hostId !== userId) return { error: 'Only host can delete room' };
 

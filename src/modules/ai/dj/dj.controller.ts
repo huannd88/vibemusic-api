@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, UseGuards, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  HttpCode,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TierGuard, RequireTier } from '../../../common/guards/tier.guard';
@@ -8,15 +16,25 @@ import { IsString, IsOptional, IsIn, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 class StartDjDto {
-  @ApiPropertyOptional({ example: 'chill' }) @IsOptional() @IsString() mood?: string;
-  @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() genres?: string[];
+  @ApiPropertyOptional({ example: 'chill' })
+  @IsOptional()
+  @IsString()
+  mood?: string;
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  genres?: string[];
 }
 class DjCommandDto {
-  @ApiProperty({ example: 'chill hơn đi, giảm tempo' }) @IsString() text: string;
+  @ApiProperty({ example: 'chill hơn đi, giảm tempo' })
+  @IsString()
+  text: string;
 }
 class DjFeedbackDto {
   @ApiProperty() @IsString() trackId: string;
-  @ApiProperty({ enum: ['up', 'down'] }) @IsIn(['up', 'down']) type: 'up' | 'down';
+  @ApiProperty({ enum: ['up', 'down'] }) @IsIn(['up', 'down']) type:
+    | 'up'
+    | 'down';
 }
 
 @ApiTags('ai-dj')
@@ -56,7 +74,10 @@ export class DjController {
 
   @Get('commentary/:trackId')
   @ApiOperation({ summary: 'AI DJ commentary/intro for a track' })
-  commentary(@CurrentUser('id') userId: string, @Param('trackId') trackId: string) {
+  commentary(
+    @CurrentUser('id') userId: string,
+    @Param('trackId') trackId: string,
+  ) {
     return this.djService.commentary(userId, trackId);
   }
 

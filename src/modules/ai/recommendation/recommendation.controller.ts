@@ -1,5 +1,19 @@
-import { Controller, Get, Post, Body, Query, Param, UseGuards, HttpCode } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  Param,
+  UseGuards,
+  HttpCode,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TierGuard, RequireTier } from '../../../common/guards/tier.guard';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
@@ -9,7 +23,9 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 class FeedbackDto {
   @ApiProperty() @IsString() trackId: string;
-  @ApiProperty({ enum: ['like', 'dislike'] }) @IsIn(['like', 'dislike']) type: 'like' | 'dislike';
+  @ApiProperty({ enum: ['like', 'dislike'] }) @IsIn(['like', 'dislike']) type:
+    | 'like'
+    | 'dislike';
   @ApiPropertyOptional() @IsOptional() @IsString() context?: string;
 }
 
@@ -30,8 +46,16 @@ export class RecommendationController {
   @Get('radio')
   @ApiOperation({ summary: 'Infinite radio from seed track/artist' })
   @ApiQuery({ name: 'seed', required: true })
-  @ApiQuery({ name: 'type', required: false, enum: ['track', 'artist', 'genre'] })
-  getRadio(@CurrentUser('id') userId: string, @Query('seed') seed: string, @Query('type') type?: string) {
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    enum: ['track', 'artist', 'genre'],
+  })
+  getRadio(
+    @CurrentUser('id') userId: string,
+    @Query('seed') seed: string,
+    @Query('type') type?: string,
+  ) {
     return this.recommendService.getRadio(userId, seed, type || 'track');
   }
 

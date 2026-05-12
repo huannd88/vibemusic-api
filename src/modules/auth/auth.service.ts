@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
@@ -15,7 +19,9 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (existing) throw new ConflictException('Email already registered');
 
     const hashedPassword = await bcrypt.hash(dto.password, 12);
@@ -32,8 +38,11 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (!user || !user.password) throw new UnauthorizedException('Invalid credentials');
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (!user || !user.password)
+      throw new UnauthorizedException('Invalid credentials');
 
     const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
@@ -44,7 +53,9 @@ export class AuthService {
   async googleAuth(idToken: string) {
     // In production, verify idToken with Google API
     // For now, decode and extract email (simplified)
-    const payload = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64').toString());
+    const payload = JSON.parse(
+      Buffer.from(idToken.split('.')[1], 'base64').toString(),
+    );
     const { email, name, picture, sub } = payload;
 
     let user = await this.prisma.user.findUnique({ where: { email } });
@@ -70,7 +81,8 @@ export class AuthService {
     });
 
     if (!stored || stored.expiresAt < new Date()) {
-      if (stored) await this.prisma.refreshToken.delete({ where: { id: stored.id } });
+      if (stored)
+        await this.prisma.refreshToken.delete({ where: { id: stored.id } });
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
@@ -86,7 +98,8 @@ export class AuthService {
 
   async forgotPassword(email: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) return { message: 'If the email exists, a reset link has been sent' };
+    if (!user)
+      return { message: 'If the email exists, a reset link has been sent' };
     // TODO: Send email with reset token
     return { message: 'If the email exists, a reset link has been sent' };
   }

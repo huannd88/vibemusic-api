@@ -11,12 +11,25 @@ export class ContextService {
     private ai: AiProviderService,
   ) {}
 
-  async reportContext(userId: string, data: { timeOfDay?: string; activity?: string; weather?: string; location?: string; metadata?: string }) {
+  async reportContext(
+    userId: string,
+    data: {
+      timeOfDay?: string;
+      activity?: string;
+      weather?: string;
+      location?: string;
+      metadata?: string;
+    },
+  ) {
     await this.prisma.contextEvent.create({
       data: { userId, ...data },
     });
     // Cache latest context for quick access
-    await this.redis.setJson(`context:latest:${userId}`, { ...data, reportedAt: new Date().toISOString() }, 3600);
+    await this.redis.setJson(
+      `context:latest:${userId}`,
+      { ...data, reportedAt: new Date().toISOString() },
+      3600,
+    );
     return { message: 'Context reported' };
   }
 
@@ -39,15 +52,28 @@ export class ContextService {
         relaxing: ['chill acoustic', 'ambient'],
         sleeping: ['sleep sounds', 'soft piano'],
       };
-      const activity = context?.activity || (hour < 12 ? 'morning' : 'relaxing');
-      return { suggestion: defaults[activity] || ['chill vibes'], context, source: 'default' };
+      const activity =
+        context?.activity || (hour < 12 ? 'morning' : 'relaxing');
+      return {
+        suggestion: defaults[activity] || ['chill vibes'],
+        context,
+        source: 'default',
+      };
     }
 
-    const recentTracks = history.map(h => `${h.track.title}`).slice(0, 5).join(', ');
-    const response = await this.ai.chatJson<{ suggestion: string; mood: string; tracks: { title: string; artist: string; youtubeQuery: string }[] }>([
+    const recentTracks = history
+      .map((h) => `${h.track.title}`)
+      .slice(0, 5)
+      .join(', ');
+    const response = await this.ai.chatJson<{
+      suggestion: string;
+      mood: string;
+      tracks: { title: string; artist: string; youtubeQuery: string }[];
+    }>([
       {
         role: 'system',
-        content: 'Given user context, suggest music. Return JSON: {"suggestion": "description", "mood": "detected_mood", "tracks": [{"title": "...", "artist": "...", "youtubeQuery": "title artist"}]} with 10 tracks.',
+        content:
+          'Given user context, suggest music. Return JSON: {"suggestion": "description", "mood": "detected_mood", "tracks": [{"title": "...", "artist": "...", "youtubeQuery": "title artist"}]} with 10 tracks.',
       },
       {
         role: 'user',

@@ -1,5 +1,18 @@
-import { Controller, Get, Post, Param, Query, UseGuards, HttpCode } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Query,
+  UseGuards,
+  HttpCode,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TierGuard, RequireTier } from '../../common/guards/tier.guard';
 import { LyricsService } from './lyrics.service';
@@ -29,7 +42,10 @@ export class LyricsController {
   @RequireTier('PREMIUM')
   @ApiOperation({ summary: 'AI translate lyrics (Premium)' })
   @ApiQuery({ name: 'lang', required: true })
-  translate(@Param('youtubeId') youtubeId: string, @Query('lang') lang: string) {
+  translate(
+    @Param('youtubeId') youtubeId: string,
+    @Query('lang') lang: string,
+  ) {
     return this.lyricsService.translateLyrics(youtubeId, lang);
   }
 }

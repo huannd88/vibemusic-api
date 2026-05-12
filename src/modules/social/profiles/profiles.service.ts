@@ -9,7 +9,11 @@ export class ProfilesService {
     const user = await this.prisma.user.findUnique({
       where: { id: profileId },
       select: {
-        id: true, name: true, avatarUrl: true, tier: true, createdAt: true,
+        id: true,
+        name: true,
+        avatarUrl: true,
+        tier: true,
+        createdAt: true,
         _count: {
           select: {
             playlists: true,
@@ -49,16 +53,24 @@ export class ProfilesService {
     const genres: Record<string, number> = {};
     const artists: Record<string, number> = {};
     for (const h of history) {
-      if (h.track.artist) artists[h.track.artist] = (artists[h.track.artist] || 0) + 1;
+      if (h.track.artist)
+        artists[h.track.artist] = (artists[h.track.artist] || 0) + 1;
     }
 
-    const topArtists = Object.entries(artists).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, count]) => ({ name, count }));
+    const topArtists = Object.entries(artists)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
 
     return {
       userId: profileId,
       totalListens: history.length,
       topArtists,
-      recentlyPlayed: history.slice(0, 5).map(h => ({ title: h.track.title, artist: h.track.artist, playedAt: h.listenedAt })),
+      recentlyPlayed: history.slice(0, 5).map((h) => ({
+        title: h.track.title,
+        artist: h.track.artist,
+        playedAt: h.listenedAt,
+      })),
     };
   }
 

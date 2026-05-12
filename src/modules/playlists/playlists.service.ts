@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { nanoid } from 'nanoid';
 
@@ -28,11 +32,16 @@ export class PlaylistsService {
       },
     });
     if (!playlist) throw new NotFoundException('Playlist not found');
-    if (!playlist.isPublic && playlist.userId !== userId) throw new ForbiddenException();
+    if (!playlist.isPublic && playlist.userId !== userId)
+      throw new ForbiddenException();
     return playlist;
   }
 
-  async update(id: string, userId: string, data: { title?: string; isPublic?: boolean }) {
+  async update(
+    id: string,
+    userId: string,
+    data: { title?: string; isPublic?: boolean },
+  ) {
     await this.verifyOwner(id, userId);
     return this.prisma.playlist.update({ where: { id }, data });
   }
@@ -51,7 +60,8 @@ export class PlaylistsService {
       orderBy: { position: 'desc' },
       take: 1,
     });
-    let position = existingTracks.length > 0 ? existingTracks[0].position + 1 : 0;
+    let position =
+      existingTracks.length > 0 ? existingTracks[0].position + 1 : 0;
 
     for (const youtubeId of youtubeIds) {
       // Upsert track
@@ -160,8 +170,11 @@ export class PlaylistsService {
   }
 
   private async verifyOwner(playlistId: string, userId: string) {
-    const playlist = await this.prisma.playlist.findUnique({ where: { id: playlistId } });
+    const playlist = await this.prisma.playlist.findUnique({
+      where: { id: playlistId },
+    });
     if (!playlist) throw new NotFoundException('Playlist not found');
-    if (playlist.userId !== userId) throw new ForbiddenException('Not your playlist');
+    if (playlist.userId !== userId)
+      throw new ForbiddenException('Not your playlist');
   }
 }

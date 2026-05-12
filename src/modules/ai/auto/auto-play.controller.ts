@@ -1,4 +1,11 @@
-import { Controller, Get, Post, Body, UseGuards, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  HttpCode,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TierGuard, RequireTier } from '../../../common/guards/tier.guard';
@@ -14,7 +21,9 @@ export class AutoPlayController {
   constructor(private autoPlayService: AutoPlayService) {}
 
   @Get('play')
-  @ApiOperation({ summary: 'AI auto-select track (zero interaction) (Premium)' })
+  @ApiOperation({
+    summary: 'AI auto-select track (zero interaction) (Premium)',
+  })
   play(@CurrentUser('id') userId: string) {
     return this.autoPlayService.play(userId);
   }
@@ -28,7 +37,10 @@ export class AutoPlayController {
   @Post('settings')
   @HttpCode(200)
   @ApiOperation({ summary: 'Update auto-play preferences (Premium)' })
-  updateSettings(@CurrentUser('id') userId: string, @Body() settings: Record<string, any>) {
+  updateSettings(
+    @CurrentUser('id') userId: string,
+    @Body() settings: Record<string, any>,
+  ) {
     return this.autoPlayService.updateSettings(userId, settings);
   }
 }

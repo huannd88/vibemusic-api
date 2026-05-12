@@ -12,7 +12,9 @@ export class FollowsService {
   async follow(followerId: string, followingId: string) {
     if (followerId === followingId) return { error: 'Cannot follow yourself' };
 
-    const target = await this.prisma.user.findUnique({ where: { id: followingId } });
+    const target = await this.prisma.user.findUnique({
+      where: { id: followingId },
+    });
     if (!target) return { error: 'User not found' };
 
     try {
@@ -51,19 +53,27 @@ export class FollowsService {
   async getFollowing(userId: string) {
     const follows = await this.prisma.follow.findMany({
       where: { followerId: userId },
-      include: { following: { select: { id: true, name: true, avatarUrl: true, tier: true } } },
+      include: {
+        following: {
+          select: { id: true, name: true, avatarUrl: true, tier: true },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
-    return follows.map(f => ({ ...f.following, followedAt: f.createdAt }));
+    return follows.map((f) => ({ ...f.following, followedAt: f.createdAt }));
   }
 
   async getFollowers(userId: string) {
     const follows = await this.prisma.follow.findMany({
       where: { followingId: userId },
-      include: { follower: { select: { id: true, name: true, avatarUrl: true, tier: true } } },
+      include: {
+        follower: {
+          select: { id: true, name: true, avatarUrl: true, tier: true },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
-    return follows.map(f => ({ ...f.follower, followedAt: f.createdAt }));
+    return follows.map((f) => ({ ...f.follower, followedAt: f.createdAt }));
   }
 
   async getFeed(userId: string) {
@@ -71,9 +81,10 @@ export class FollowsService {
       where: { followerId: userId },
       select: { followingId: true },
     });
-    const followingIds = following.map(f => f.followingId);
+    const followingIds = following.map((f) => f.followingId);
 
-    if (followingIds.length === 0) return { feed: [], message: 'Follow people to see their activity' };
+    if (followingIds.length === 0)
+      return { feed: [], message: 'Follow people to see their activity' };
 
     // Get recent activity from followed users
     const recentHistory = await this.prisma.listeningHistory.findMany({
@@ -87,7 +98,7 @@ export class FollowsService {
     });
 
     return {
-      feed: recentHistory.map(h => ({
+      feed: recentHistory.map((h) => ({
         type: 'listened',
         user: h.user,
         track: h.track,
@@ -114,18 +125,32 @@ export class FollowsService {
 
     if (!this.ai.isConfigured()) {
       // Merge and deduplicate
-      const allTracks = [...myHistory, ...theirHistory].map(h => h.track);
-      const unique = [...new Map(allTracks.map(t => [t.youtubeId, t])).values()];
-      return { tracks: unique.slice(0, 20), source: 'merge', blendWith: otherUserId };
+      const allTracks = [...myHistory, ...theirHistory].map((h) => h.track);
+      const unique = [
+        ...new Map(allTracks.map((t) => [t.youtubeId, t])).values(),
+      ];
+      return {
+        tracks: unique.slice(0, 20),
+        source: 'merge',
+        blendWith: otherUserId,
+      };
     }
 
-    const myTracks = myHistory.slice(0, 15).map(h => `${h.track.title} - ${h.track.artist || 'Unknown'}`);
-    const theirTracks = theirHistory.slice(0, 15).map(h => `${h.track.title} - ${h.track.artist || 'Unknown'}`);
+    const myTracks = myHistory
+      .slice(0, 15)
+      .map((h) => `${h.track.title} - ${h.track.artist || 'Unknown'}`);
+    const theirTracks = theirHistory
+      .slice(0, 15)
+      .map((h) => `${h.track.title} - ${h.track.artist || 'Unknown'}`);
 
-    const response = await this.ai.chatJson<{ playlistTitle: string; tracks: { title: string; artist: string; youtubeQuery: string }[] }>([
+    const response = await this.ai.chatJson<{
+      playlistTitle: string;
+      tracks: { title: string; artist: string; youtubeQuery: string }[];
+    }>([
       {
         role: 'system',
-        content: 'Create a "Blend" playlist combining two users\' music tastes. Find songs they might both enjoy. Return JSON: {"playlistTitle": "creative blend name", "tracks": [{"title": "...", "artist": "...", "youtubeQuery": "title artist"}]} with 20 tracks.',
+        content:
+          'Create a "Blend" playlist combining two users\' music tastes. Find songs they might both enjoy. Return JSON: {"playlistTitle": "creative blend name", "tracks": [{"title": "...", "artist": "...", "youtubeQuery": "title artist"}]} with 20 tracks.',
       },
       {
         role: 'user',

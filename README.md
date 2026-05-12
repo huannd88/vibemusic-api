@@ -2,30 +2,48 @@
 
 > NestJS Backend — AI Music OS · **~120 REST + 8 WebSocket endpoints**
 >
-> Swagger UI: `http://localhost:3000/api-docs`
+> Swagger UI: `http://localhost:3000/api-docs` (disabled in production)
 
 ---
 
 ## Kiến trúc tổng quan
 
+### Production Deployment (Multi-instance)
+
 ```
-┌─────────────────────────────────────────────────┐
-│              Client (Flutter / Web)              │
-└──────────────────────┬──────────────────────────┘
-                       │ HTTPS / WSS
-┌──────────────────────▼──────────────────────────┐
-│                 NestJS Application               │
-│  ┌──────────┐  ┌───────────┐  ┌──────────────┐  │
-│  │ REST API │  │ WebSocket │  │  BullMQ      │  │
-│  │Controllers│ │  Gateway  │  │  Workers     │  │
-│  └────┬─────┘  └─────┬─────┘  └──────┬───────┘  │
-│       └───────────────┼───────────────┘          │
-│              Service Layer (DI)                  │
-└───────┬───────────────┬───────────────┬──────────┘
-        │               │               │
-   PostgreSQL 16     Redis 7      External APIs
-   (Prisma ORM)    (ioredis)    (YouTube, OpenAI)
+┌─────────────────────────────────────────────────────────────┐
+│                  Client (Flutter / Web)                      │
+└─────────────────────────┬───────────────────────────────────┘
+                          │ HTTPS / WSS
+┌─────────────────────────▼───────────────────────────────────┐
+│              Load Balancer (Nginx / ALB)                     │
+└──────┬──────────────┬──────────────┬────────────────────────┘
+       │              │              │
+┌──────▼──────┐┌──────▼──────┐┌──────▼───────────────────┐
+│ API Pod 1   ││ API Pod 2   ││  Worker Pod              │
+│ APP_ROLE=api││ APP_ROLE=api ││  APP_ROLE=worker         │
+│ REST + WS   ││ REST + WS   ││  Cron (8 jobs) + Seed    │
+│ (scalable)  ││ (scalable)  ││  (single-instance only)  │
+└──────┬──────┘└──────┬──────┘└──────┬───────────────────┘
+       └──────────────┼──────────────┘
+              Service Layer (DI)
+       ┌──────────────┼──────────────┐
+       │              │              │
+  PostgreSQL 16    Redis 7     External APIs
+  (Prisma ORM)   (ioredis)   (YouTube, OpenAI)
+                  ├─ Cache
+                  ├─ Distributed Lock (cron dedup)
+                  ├─ Socket.IO Adapter (WS broadcast)
+                  └─ Pub/Sub (room sync)
 ```
+
+### APP_ROLE — Runtime Mode
+
+| Mode | ENV | HTTP | Cron | Dùng khi |
+|------|-----|------|------|----------|
+| **API** | `APP_ROLE=api` | ✅ | ❌ | Multi-instance behind LB |
+| **Worker** | `APP_ROLE=worker` | ❌ | ✅ | Single-instance |
+| **All** | `APP_ROLE=all` | ✅ | ✅ | Dev / single-server |
 
 ### Module Pattern
 
@@ -43,8 +61,9 @@ modules/<name>/
 | Service | Scope | Chức năng |
 |---------|-------|-----------|
 | `PrismaService` | Global | Database ORM wrapper |
-| `RedisService` | Global | `get/set/getJson/setJson/del/flushPattern` |
+| `RedisService` | Global | Cache, distributed lock, SCAN-based flush |
 | `AiProviderService` | Global | OpenAI SDK wrapper (custom base URL cho OpenRouter) |
+| `RedisIoAdapter` | Bootstrap | Socket.IO Redis adapter (WS multi-instance) |
 
 ### Auth Flow
 
@@ -63,14 +82,16 @@ Register/Login → JWT Access Token (15m) + Refresh Token (7d)
 | Framework | NestJS (TypeScript) | 11.x |
 | Database | PostgreSQL | 16 |
 | ORM | Prisma | 6.x |
-| Cache | Redis (ioredis) | 7 |
-| Queue | BullMQ | 5.x |
+| Cache / Lock | Redis (ioredis) | 7 |
+| Cron | @nestjs/schedule | 6.x |
 | Auth | Passport.js + JWT | — |
-| WebSocket | Socket.io (@nestjs/websockets) | 4.x |
+| WebSocket | Socket.io + @socket.io/redis-adapter | 4.x |
+| Security | Helmet + Compression | — |
 | AI | OpenAI SDK via OpenRouter | GPT-4o-mini |
 | YouTube | ytdl-core + youtubei | — |
 | API Docs | Swagger (@nestjs/swagger) | 11.x |
 | Rate Limit | @nestjs/throttler | 6.x |
+| Container | Docker (multi-stage) | — |
 
 ---
 
@@ -79,13 +100,17 @@ Register/Login → JWT Access Token (15m) + Refresh Token (7d)
 ```
 vibemusic-api/
 ├── src/
-│   ├── main.ts                         # Bootstrap, Swagger, CORS, ValidationPipe
-│   ├── app.module.ts                   # Root module (imports all features)
+│   ├── main.ts                         # Bootstrap: helmet, CORS, graceful shutdown, role-based start
+│   ├── app.module.ts                   # Root module (conditional ScheduleModule, env validation)
 │   ├── prisma/                         # PrismaService (global)
-│   ├── redis/                          # RedisService (global)
-│   ├── common/decorators/              # @CurrentUser decorator
+│   ├── redis/                          # RedisService (cache, distributed lock, SCAN flush)
+│   ├── common/
+│   │   ├── decorators/                 # @CurrentUser decorator
+│   │   ├── app-role.ts                 # APP_ROLE helpers (api/worker/all)
+│   │   ├── env.validation.ts           # Env validation (fail-fast at startup)
+│   │   └── redis.adapter.ts            # Socket.IO Redis adapter (multi-instance WS)
 │   └── modules/
-│       ├── health/                     # GET /health, /config
+│       ├── health/                     # GET /health, /config (dynamic version)
 │       ├── auth/                       # 8 endpoints (JWT + OAuth + refresh rotation)
 │       ├── users/                      # 6 endpoints (profile, devices, subscription)
 │       ├── playback/                   # 4+5 endpoints (stream, info, smart playback)
@@ -93,8 +118,8 @@ vibemusic-api/
 │       ├── discovery/                  # 10 endpoints + 8 cronjobs + sync controller
 │       │   ├── discovery.controller.ts      # 10 discovery endpoints
 │       │   ├── discovery.service.ts         # Prisma queries + Redis cache
-│       │   ├── discovery-cron.service.ts    # 8 scheduled cronjobs (@nestjs/schedule)
-│       │   ├── discovery-sync.controller.ts # Manual trigger + status endpoints
+│       │   ├── discovery-cron.service.ts    # 8 cronjobs (Redis distributed lock)
+│       │   ├── discovery-sync.controller.ts # Manual trigger (JWT-protected)
 │       │   └── youtube-charts.helper.ts     # YouTube Charts InnerTube scraper
 │       ├── playlists/                  # 11 endpoints (CRUD, share, import)
 │       ├── library/                    # 9 endpoints (favorites, history, queue, backup)
@@ -120,6 +145,8 @@ vibemusic-api/
 ├── prisma/
 │   ├── schema.prisma                   # 32 models
 │   └── migrations/                     # 4 migrations
+├── Dockerfile                          # Multi-stage production build
+├── .dockerignore
 ├── .env.example
 ├── package.json
 └── tsconfig.json
@@ -131,7 +158,7 @@ vibemusic-api/
 
 ### Prerequisites
 
-- **Node.js** ≥ 18
+- **Node.js** ≥ 20
 - **PostgreSQL 16** + **Redis 7** (via `vibemusic-infra` Docker)
 - **npm** (hoặc pnpm)
 
@@ -152,7 +179,7 @@ cp .env.example .env
 npx prisma generate
 npx prisma migrate dev
 
-# 5. Start dev server (hot reload)
+# 5. Start dev server (APP_ROLE=all → API + Cron)
 npm run start:dev
 
 # Server:  http://localhost:3000
@@ -160,30 +187,36 @@ npm run start:dev
 # Health:  http://localhost:3000/health
 ```
 
-### Production (Docker)
+### Production (Docker Compose)
+
+```bash
+# Từ vibemusic-infra/
+cd ../vibemusic-infra
+
+# 1. Start toàn bộ stack (postgres + redis + api + worker)
+docker-compose up -d
+
+# 2. Apply migrations
+docker exec vibemusic-api npx prisma migrate deploy
+
+# 3. Scale API instances (worker luôn giữ 1)
+docker-compose up -d --scale api=3
+
+# 4. Check health
+curl http://localhost:3000/health
+```
+
+### Production (Manual)
 
 ```bash
 # Build production
 npm run build
 
-# Run production
-NODE_ENV=production npm run start:prod
-# → Runs dist/main.js
+# Run as API (multi-instance)
+APP_ROLE=api NODE_ENV=production npm run start:prod
 
-# Hoặc dùng Docker:
-# 1. Build image
-docker build -t vibemusic-api .
-
-# 2. Run với production env
-docker run -d \
-  --name vibemusic-api \
-  -p 3000:3000 \
-  --env-file .env.production \
-  --network vibemusic-network \
-  vibemusic-api
-
-# 3. Apply migrations
-docker exec vibemusic-api npx prisma migrate deploy
+# Run as Worker (single-instance)
+APP_ROLE=worker NODE_ENV=production npm run start:prod
 ```
 
 ### NPM Scripts
@@ -215,33 +248,26 @@ docker exec vibemusic-api npx prisma migrate deploy
 
 ## Environment Variables
 
-```env
-# === Core ===
-PORT=3000
-NODE_ENV=development
-DATABASE_URL=postgresql://vibemusic:vibemusic_dev_2026@localhost:5432/vibemusic
-REDIS_HOST=localhost
-REDIS_PORT=6379
+| Variable | Required | Default | Mô tả |
+|----------|----------|---------|-------|
+| `PORT` | ❌ | `3000` | HTTP port |
+| `NODE_ENV` | ❌ | `development` | `development` / `production` / `test` |
+| `APP_ROLE` | ❌ | `all` | `api` / `worker` / `all` — xem bảng trên |
+| `DATABASE_URL` | ✅ | — | PostgreSQL connection string |
+| `REDIS_HOST` | ❌ | `localhost` | Redis host |
+| `REDIS_PORT` | ❌ | `6379` | Redis port |
+| `REDIS_PASSWORD` | ❌ | — | Redis password (production) |
+| `JWT_SECRET` | ✅ | — | JWT signing secret |
+| `JWT_EXPIRATION` | ❌ | `15m` | Access token TTL |
+| `JWT_REFRESH_SECRET` | ✅ | — | Refresh token signing secret |
+| `JWT_REFRESH_EXPIRATION` | ❌ | `7d` | Refresh token TTL |
+| `AI_BASE_URL` | ❌ | — | OpenAI-compatible API base URL |
+| `AI_API_KEY` | ❌ | — | AI API key |
+| `AI_MODEL` | ❌ | — | AI model name |
+| `CORS_ORIGINS` | ❌ | `*` (dev) | Comma-separated allowed origins |
+| `ENCRYPT_SECRET` | ❌ | — | Response encryption secret |
 
-# === Auth ===
-JWT_SECRET=vibemusic_jwt_secret_dev_2026_change_in_production
-JWT_EXPIRATION=15m
-JWT_REFRESH_SECRET=vibemusic_refresh_secret_dev_2026_change_in_production
-JWT_REFRESH_EXPIRATION=7d
-
-# === AI (OpenRouter / OpenAI compatible) ===
-AI_BASE_URL=https://openrouter.ai/api/v1
-AI_API_KEY=your_openrouter_api_key_here
-AI_MODEL=openai/gpt-4o-mini
-
-# === OAuth (optional) ===
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
-
-# === Encryption ===
-ENCRYPT_SECRET=vibemusic_encrypt_secret_dev
-```
+> **Env Validation**: App sẽ fail-fast khi thiếu required vars (`DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`).
 
 ---
 

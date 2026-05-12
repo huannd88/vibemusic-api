@@ -35,13 +35,16 @@ export class DiscoveryService {
   }
 
   async getNewTracks(country: string = 'VN') {
-    return this.cachedQuery(`discovery:new-tracks:${country}`, CACHE_TTL_6H, () =>
-      this.prisma.chart.findMany({
-        where: { countryCode: country, chartType: 'new' },
-        include: { track: true },
-        orderBy: { rank: 'asc' },
-        take: 30,
-      }),
+    return this.cachedQuery(
+      `discovery:new-tracks:${country}`,
+      CACHE_TTL_6H,
+      () =>
+        this.prisma.chart.findMany({
+          where: { countryCode: country, chartType: 'new' },
+          include: { track: true },
+          orderBy: { rank: 'asc' },
+          take: 30,
+        }),
     );
   }
 
@@ -68,11 +71,14 @@ export class DiscoveryService {
   }
 
   async getPlaylists(country: string = 'VN') {
-    return this.cachedQuery(`discovery:playlists:${country}`, CACHE_TTL_6H, () =>
-      this.prisma.topPlaylist.findMany({
-        where: { countryCode: country },
-        take: 60,
-      }),
+    return this.cachedQuery(
+      `discovery:playlists:${country}`,
+      CACHE_TTL_6H,
+      () =>
+        this.prisma.topPlaylist.findMany({
+          where: { countryCode: country },
+          take: 60,
+        }),
     );
   }
 
@@ -83,15 +89,21 @@ export class DiscoveryService {
   }
 
   async getGenreVideos(genreCode: string, region: string = 'VN') {
-    return this.cachedQuery(`discovery:genre:${genreCode}:${region}`, CACHE_TTL_6H, async () => {
-      const genre = await this.prisma.genre.findUnique({ where: { code: genreCode } });
-      if (!genre) return [];
-      return this.prisma.genreVideo.findMany({
-        where: { genreId: genre.id, regionCode: region },
-        include: { track: true },
-        take: 30,
-      });
-    });
+    return this.cachedQuery(
+      `discovery:genre:${genreCode}:${region}`,
+      CACHE_TTL_6H,
+      async () => {
+        const genre = await this.prisma.genre.findUnique({
+          where: { code: genreCode },
+        });
+        if (!genre) return [];
+        return this.prisma.genreVideo.findMany({
+          where: { genreId: genre.id, regionCode: region },
+          include: { track: true },
+          take: 30,
+        });
+      },
+    );
   }
 
   async getMoodCategories() {
@@ -108,7 +120,11 @@ export class DiscoveryService {
     );
   }
 
-  private async cachedQuery<T>(key: string, ttl: number, queryFn: () => Promise<T>): Promise<T> {
+  private async cachedQuery<T>(
+    key: string,
+    ttl: number,
+    queryFn: () => Promise<T>,
+  ): Promise<T> {
     const cached = await this.redis.getJson<T>(key);
     if (cached) return cached;
 

@@ -27,14 +27,27 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 // Phase 5
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 
+import { validateEnv } from './common/env.validation';
+import { isWorker } from './common/app-role';
+
+/**
+ * Root Application Module
+ *
+ * ScheduleModule is only registered when APP_ROLE is 'worker' or 'all'.
+ * This prevents cronjobs from running on API instances in multi-instance deployments.
+ */
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: validateEnv,
+    }),
     ThrottlerModule.forRoot([
       { name: 'general', ttl: 60000, limit: 120 },
       { name: 'youtube', ttl: 60000, limit: 30 },
     ]),
-    ScheduleModule.forRoot(),
+    // Cron scheduler — only active on worker instances
+    ...(isWorker() ? [ScheduleModule.forRoot()] : []),
     PrismaModule,
     RedisModule,
     // Phase 1

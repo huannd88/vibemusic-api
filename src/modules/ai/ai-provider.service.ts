@@ -8,23 +8,35 @@ export class AiProviderService {
   private client: OpenAI | null = null;
 
   constructor(private config: ConfigService) {
-    const apiKey = this.config.get('AI_API_KEY') || this.config.get('OPENAI_API_KEY');
+    const apiKey =
+      this.config.get('AI_API_KEY') || this.config.get('OPENAI_API_KEY');
     if (apiKey) {
       this.client = new OpenAI({
         apiKey,
-        baseURL: this.config.get('AI_BASE_URL') || 'https://openrouter.ai/api/v1',
+        baseURL:
+          this.config.get('AI_BASE_URL') || 'https://openrouter.ai/api/v1',
       });
-      this.logger.log(`AI Provider initialized (base: ${this.config.get('AI_BASE_URL') || 'openrouter.ai'})`);
+      this.logger.log(
+        `AI Provider initialized (base: ${this.config.get('AI_BASE_URL') || 'openrouter.ai'})`,
+      );
     } else {
-      this.logger.warn('AI Provider not configured — AI features will use fallback mode');
+      this.logger.warn(
+        'AI Provider not configured — AI features will use fallback mode',
+      );
     }
   }
 
   async chat(
     messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
-    options?: { model?: string; temperature?: number; maxTokens?: number; jsonMode?: boolean },
+    options?: {
+      model?: string;
+      temperature?: number;
+      maxTokens?: number;
+      jsonMode?: boolean;
+    },
   ): Promise<string> {
-    const model = options?.model || this.config.get('AI_MODEL') || 'openai/gpt-4o-mini';
+    const model =
+      options?.model || this.config.get('AI_MODEL') || 'openai/gpt-4o-mini';
 
     try {
       if (!this.client) throw new Error('AI not configured');
@@ -33,7 +45,9 @@ export class AiProviderService {
         messages,
         temperature: options?.temperature ?? 0.7,
         max_tokens: options?.maxTokens ?? 2000,
-        ...(options?.jsonMode ? { response_format: { type: 'json_object' } } : {}),
+        ...(options?.jsonMode
+          ? { response_format: { type: 'json_object' } }
+          : {}),
       });
 
       return response.choices[0]?.message?.content || '';
@@ -57,7 +71,8 @@ export class AiProviderService {
   }
 
   isConfigured(): boolean {
-    const key = this.config.get('AI_API_KEY') || this.config.get('OPENAI_API_KEY');
+    const key =
+      this.config.get('AI_API_KEY') || this.config.get('OPENAI_API_KEY');
     return !!key;
   }
 }
